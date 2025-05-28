@@ -11,6 +11,7 @@ export default function AppLayout() {
           headerShown: false, 
         }}
       />
+      <Stack.Screen name="home" options={{ title: 'Home' }} />
     </Stack>
   );
 }

@@ -24,8 +24,9 @@ const LoginPage = () => {
     console.log('Login attempt with:', { email, password });
     // TODO: Implement actual login logic here (e.g., API call)
     // If successful, navigate to the main app:
-    // router.replace('/(app)/home'); // Example path
+    
     Alert.alert('Login Attempt', `Email: ${email}, Password: ${password}`);
+    router.replace('/(app)/home'); // navigate to home screen
   };
 
   const handleSignUpPress = () => {
