@@ -1,3 +1,4 @@
+import { useRouter } from 'expo-router';
 import {
   Image,
   SafeAreaView,
@@ -9,20 +10,19 @@ import {
 } from 'react-native';
 
 
-const logoImage = require('../../assets/images/amigosLogo.png'); // Adjust if needed
+const logoImage = require('../../assets/images/amigosLogo.png'); 
 
+export default function Index() {
+  const router = useRouter();
+  const handleSignInWithGoogle = () => {
+    console.log('push to sign in')
+    router.push('/(auth)/login');
+  };
 
-const handleSignInWithGoogle = () => {
-  console.log('Sign In with Google pressed');
-  // Add Google Sign-In logic and navigation here
-};
+  const handleCreateAccount = () => {
+    router.push('/(auth)/signup');
+  };
 
-const handleCreateAccount = () => {
-  console.log('Create Account pressed');
-  // Add navigation to create account screen here
-};
-
-const Index = () => {
   return (
     <View style={styles.rootContainer}>
       <SafeAreaView style={styles.safeAreaContainer}>
@@ -138,4 +138,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default Index;
+
