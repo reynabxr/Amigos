@@ -2,16 +2,16 @@ import {
   Image,
   SafeAreaView,
   StatusBar,
-  StyleSheet, // Added View for the root container
+  StyleSheet,
   Text,
   TouchableOpacity,
-  View, // Added View for the root container
+  View,
 } from 'react-native';
 
-// Make sure this path is correct relative to this file
+
 const logoImage = require('../../assets/images/amigosLogo.png'); // Adjust if needed
 
-// Define placeholder functions for onPress handlers
+
 const handleSignInWithGoogle = () => {
   console.log('Sign In with Google pressed');
   // Add Google Sign-In logic and navigation here
@@ -24,7 +24,6 @@ const handleCreateAccount = () => {
 
 const Index = () => {
   return (
-    // REPLACED LinearGradient with a View and a solid background color
     <View style={styles.rootContainer}>
       <SafeAreaView style={styles.safeAreaContainer}>
         <StatusBar barStyle="light-content" />
@@ -67,7 +66,6 @@ const Index = () => {
 };
 
 const styles = StyleSheet.create({
-  // RENAMED and MODIFIED: gradientContainer to rootContainer
   rootContainer: {
     flex: 1,
     backgroundColor: '#EA4080', 
@@ -78,47 +76,47 @@ const styles = StyleSheet.create({
   contentContainer: {
     flex: 1,
     alignItems: 'center',
-    justifyContent: 'center', // Center content vertically
+    justifyContent: 'center', 
     paddingHorizontal: 30,
-    paddingBottom: 40, // Padding at the bottom
-    paddingTop: StatusBar.currentHeight ? StatusBar.currentHeight + 20 : 60, // Padding at the top
+    paddingBottom: 40, 
+    paddingTop: StatusBar.currentHeight ? StatusBar.currentHeight + 20 : 60, 
   },
   logoSection: {
     alignItems: 'center',
-    marginBottom: 40, // Space below the logo section
+    marginBottom: 40, 
   },
   logo: {
-    width: 450, // Adjust size as needed
-    height: 300, // Adjust size as needed
+    width: 450, 
+    height: 300, 
     marginBottom: 5,
   },
   appName: {
     fontSize: 60,
     fontWeight: 'bold',
-    color: 'white', // This will work well on a darker background
-    fontFamily: 'SansitaSwashed', // Make sure this font is loaded
+    color: 'white', 
+    fontFamily: 'SansitaSwashed', 
     marginBottom: 5,
   },
   tagline: {
     fontSize: 18,
-    color: 'white', // This will work well on a darker background
-    fontFamily: 'SansitaSwashed', // Make sure this font is loaded
+    color: 'white', 
+    fontFamily: 'SansitaSwashed', 
   },
   spacer: {
-    flex: 0.8, // This will push the logo to the top and buttons/link to the bottom
+    flex: 0.8, 
   },
   buttonSection: {
     width: '100%',
     alignItems: 'center',
-    marginBottom: 20, // Space above the "No account?" link
+    marginBottom: 20, 
   },
   button: {
-    flexDirection: 'row', // To allow icon and text side-by-side
+    flexDirection: 'row', 
     width: '100%',
     paddingVertical: 15,
     paddingHorizontal: 20,
     borderWidth: 1.5,
-    borderColor: 'white', // White border might look good on a colored background
+    borderColor: 'white', 
     borderRadius: 30,
     alignItems: 'center',
     justifyContent: 'center',
@@ -126,15 +124,15 @@ const styles = StyleSheet.create({
 
   
   buttonText: {
-    color: 'white', // White text for the button
+    color: 'white', 
     fontSize: 14,
     fontWeight: '600',
   },
   bottomLinkButton: {
-    paddingVertical: 10, // Make it easier to tap
+    paddingVertical: 10, 
   },
   bottomLinkText: {
-    color: 'white', // White text for the link
+    color: 'white', 
     fontSize: 14,
     fontWeight: '500',
   },
