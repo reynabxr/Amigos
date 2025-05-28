@@ -1,14 +1,14 @@
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    Alert,
-    SafeAreaView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  Alert,
+  SafeAreaView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 
 const LoginPage = () => {
@@ -21,6 +21,14 @@ const LoginPage = () => {
       Alert.alert('Error', 'Please enter both email and password.');
       return;
     }
+    
+    // Basic email validation 
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      Alert.alert('Error', 'Please enter a valid email address.');
+      return;
+    }
+
     console.log('Login attempt with:', { email, password });
     // TODO: Implement actual login logic here (e.g., API call)
     // If successful, navigate to the main app:

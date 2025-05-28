@@ -10,7 +10,8 @@ export default function AuthLayout() {
         options={{
           title: 'Log In',
           headerShown: true,
-          headerBackTitle: ' ', // For iOS back button style
+          headerLeft: () => null,
+          headerBackVisible: false,
         }}
       />
       <Stack.Screen
@@ -18,7 +19,8 @@ export default function AuthLayout() {
         options={{
           title: 'Create Account',
           headerShown: true,
-          headerBackTitle: ' ', // For iOS back button style
+          headerLeft: () => null,
+          headerBackVisible: false,
         }}
       />
       {/* If you have googleSignIn.tsx in (auth): */}

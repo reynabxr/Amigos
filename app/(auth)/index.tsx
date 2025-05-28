@@ -46,7 +46,7 @@ export default function Index() {
               onPress={handleSignInWithGoogle}
             >
               
-              <Text style={styles.buttonText}>SIGN IN WITH GOOGLE</Text>
+              <Text style={styles.buttonText}>SIGN IN</Text>
             </TouchableOpacity>
           </View>
 
@@ -137,5 +137,3 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
 });
-
-
