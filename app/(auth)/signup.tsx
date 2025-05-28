@@ -3,8 +3,7 @@ import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function signup() {
-    const router = useRouter(); // Add this if not already present
-// ...
+    const router = useRouter(); 
 
   return (
     <View style={styles.container}>
