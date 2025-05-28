@@ -1,12 +1,10 @@
 {
-  "extends": "expo/tsconfig.base.json",
+  "extends": "expo/tsconfig.base",
   "compilerOptions": {
-    "strict": true,
-    "paths": {
-      "@/*": [
-        "./*"
-      ]
-    }
+    "strict": true
+    // If the JSX error persists after the next steps,
+    // you will uncomment or add the line below:
+    // "jsx": "react-jsx"
   },
   "include": [
     "**/*.ts",
