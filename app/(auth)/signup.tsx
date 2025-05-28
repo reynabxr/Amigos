@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+import { firebaseSignUp } from '../../services/authService';
 
 const SignupPage = () => {
   const router = useRouter();
@@ -18,8 +19,9 @@ const SignupPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSignupPress = () => {
+  const handleSignupPress = async () => {
     if (!username || !email || !password || !confirmPassword) {
       Alert.alert('Error', 'Please fill in all fields.');
       return;
@@ -35,11 +37,32 @@ const SignupPage = () => {
       return;
     }
 
-    console.log('Signup attempt with:', { username, email, password });
-    // TODO: Implement actual signup logic here (e.g., API call)
-    // If successful, you might navigate to a confirmation page or directly to login/main app
-    router.replace('/(app)/home'); // navigate to home page
-    Alert.alert('Signup Attempt', `Username: ${username}, Email: ${email}`);
+    setIsLoading(true);
+    // call firebase signup service
+    try {
+      const response = await firebaseSignUp(username.trim(), email.trim(), password.trim());
+
+      if (response.success && response.user) {
+        Alert.alert(
+          'Account created successfully!',
+          'Welcome to Amigos!'
+        );
+      } else {
+        // handle errors
+        let errorMessage = response.message || response.error || 'Signup failed. Please try again.';
+        if (response.message === 'auth/email-already-in-use') {
+          errorMessage = 'This email is already in use. Please try another one.';
+        } else if (response.message === 'auth/weak-password') {
+          errorMessage = 'The password is too weak. Please choose a stronger password.';
+        }
+        Alert.alert('Signup Failed', errorMessage);
+      }
+    } catch (error: any) {
+      console.error('Signup Error:', error);
+      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleSignInPress = () => {

@@ -10,13 +10,15 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+import { firebaseSignIn } from '../../services/authService';
 
 const LoginPage = () => {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleLoginPress = () => {
+  const handleLoginPress = async () => {
     if (!email || !password) {
       Alert.alert('Error', 'Please enter both email and password.');
       return;
@@ -29,12 +31,27 @@ const LoginPage = () => {
       return;
     }
 
-    console.log('Login attempt with:', { email, password });
-    // TODO: Implement actual login logic here (e.g., API call)
-    // If successful, navigate to the main app:
-    
-    Alert.alert('Login Attempt', `Email: ${email}, Password: ${password}`);
-    router.replace('/(app)/home'); // navigate to home screen
+    setIsLoading(true);
+    // call firebase sign in service
+    try {
+      const response = await firebaseSignIn(email.trim(), password.trim());
+      if (response.success && response.user) {
+        Alert.alert('Login Successful', 'Welcome back to Amigos!');
+        router.replace('../(app)/home'); // navigate to home screen
+      } else {
+        // handle errors
+        let errorMessage = response.message || response.error || 'Login failed. Please try again.';
+        if (response.message === 'auth/user-not-found' || response.message === 'auth/wrong-password' || response.message === 'auth/invalid-credential') {
+          errorMessage = 'Invalid email or password. Please try again.';
+        }
+        Alert.alert('Login Failed', errorMessage);
+      }
+    } catch (error: any) {
+      console.error('Login Error:', error);
+      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleSignUpPress = () => {

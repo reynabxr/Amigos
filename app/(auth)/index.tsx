@@ -14,13 +14,13 @@ const logoImage = require('../../assets/images/amigosLogo.png');
 
 export default function Index() {
   const router = useRouter();
-  const handleSignInWithGoogle = () => {
+  const handleSignIn = () => {
     console.log('push to sign in')
-    router.push('/(auth)/login');
+    router.push('/login');
   };
 
   const handleCreateAccount = () => {
-    router.push('/(auth)/signup');
+    router.push('/signup');
   };
 
   return (
@@ -43,7 +43,7 @@ export default function Index() {
           <View style={styles.buttonSection}>
             <TouchableOpacity
               style={styles.button}
-              onPress={handleSignInWithGoogle}
+              onPress={handleSignIn}
             >
               
               <Text style={styles.buttonText}>SIGN IN</Text>
