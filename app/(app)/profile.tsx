@@ -1,17 +1,20 @@
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { signOut } from 'firebase/auth';
 import React, { useState } from 'react';
 import {
-    Alert,
-    Image,
-    SafeAreaView,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  Image,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
+import { auth } from '../../services/firebaseConfig';
+
 
 // Placeholder for user data 
 const initialUserData = {
@@ -43,11 +46,19 @@ export default function ProfileScreen() {
         { text: "Cancel", style: "cancel" },
         {
           text: "Log Out",
-          onPress: () => {
-            console.log("User logged out");
-            // TODO: Implement actual logout logic (clear auth state, tokens)
-            // After logout, navigate to the auth flow or initial screen
-            router.replace('/(auth)/login'); // Or your app's entry point for logged-out users
+          onPress: async () => {
+            try {
+              // 'auth' is your initialized Firebase Auth instance
+              await signOut(auth); // Use the imported auth instance
+              console.log("ProfileScreen: User logged out successfully from Firebase via signOut.");
+              // The RootLayout's onAuthStateChanged listener should now handle the redirect.
+              // You might not even need a router.replace() here if RootLayout is robust.
+              // However, an explicit redirect can make the UX feel faster.
+              // router.replace('/(auth)/login'); // Optional: for immediate UI feedback
+            } catch (error) {
+              console.error("ProfileScreen: Error logging out: ", error);
+              Alert.alert("Error", "Could not log out. Please try again.");
+            }
           },
           style: "destructive",
         },
