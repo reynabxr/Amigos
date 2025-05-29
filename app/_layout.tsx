@@ -6,6 +6,7 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { auth } from '../services/firebaseConfig';
 
 const AuthState = () => {
+  console.log("AuthState: Component rendering/mounted.");
   const [firebaseUser, setFirebaseUser] = useState<User | null>(null);  // state to hold the firebase user
   const [isLoadingAuth, setIsLoadingAuth] = useState(true); // state to track if auth state is still loading
   const segments = useSegments();
@@ -13,6 +14,7 @@ const AuthState = () => {
 
   useEffect(() => {
     // handle non-initialised auth
+    console.log("AuthState: Initial useEffect for onAuthStateChanged setup.");
     if (!auth) {
       console.warn("Auth not initialised.");
       setIsLoadingAuth(false);
