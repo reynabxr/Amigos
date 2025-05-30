@@ -14,7 +14,7 @@ import {
 // Sample Data (replace with your actual data fetching)
 const upcomingMeetingsData = [
   { id: '1', title: 'Tan Family', time: 'Tomorrow, 11:00 AM', location: 'The Brew Spot', attendees: ['Alex', 'You'] },
-  { id: '2', title: 'Study Group', time: 'Friday, 6:00 PM', location: 'Yakiniku like (Clementi Mall)', attendees: ['Sarah', 'Mike', 'You'] },
+  { id: '2', title: 'Study Group', time: 'Friday, 6:00 PM', location: 'Yakiniku Like (Clementi Mall)', attendees: ['Sarah', 'Mike', 'You'] },
 ];
 
 const placesEatenData = [
