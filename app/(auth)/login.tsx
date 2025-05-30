@@ -1,14 +1,19 @@
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
+  Keyboard,
+  KeyboardAvoidingView,
   SafeAreaView,
+  ScrollView,
   StatusBar,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  TouchableWithoutFeedback,
+  View,
 } from 'react-native';
 import { firebaseSignIn } from '../../services/authService';
 
@@ -60,46 +65,58 @@ const LoginPage = () => {
   return (
     <SafeAreaView style={styles.screenContainer}>
       <StatusBar barStyle="dark-content" />
-      <View style={styles.centeredView}>
-        <View style={styles.card}>
-          <Text style={styles.signInTitle}>Sign In</Text>
+      <KeyboardAvoidingView
+        behavior={"padding"}
+        style={styles.keyboardAvoidingContainer}
+        keyboardVerticalOffset = {0}
+      >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <ScrollView contentContainerStyle={styles.scrollContainer}>
+            <View style={styles.centeredView}>
+              <View style={styles.card}>
+                <Text style={styles.signInTitle}>Sign In</Text>
 
-          <View style={styles.signUpPromptContainer}>
-            <Text style={styles.notRegisteredText}>Not registered yet? </Text>
-            <TouchableOpacity onPress={handleSignUpPress}>
-              <Text style={styles.signUpLink}>Sign Up</Text>
-            </TouchableOpacity>
-          </View>
+                <View style={styles.signUpPromptContainer}>
+                  <Text style={styles.notRegisteredText}>Not registered yet? </Text>
+                  <TouchableOpacity onPress={handleSignUpPress}>
+                    <Text style={styles.signUpLink}>Sign Up</Text>
+                  </TouchableOpacity>
+                </View>
 
-          <View style={styles.divider} />
+                <View style={styles.divider} />
 
-          <Text style={styles.label}>Email</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Email address"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            placeholderTextColor="#999"
-          />
+                <Text style={styles.label}>Email</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Email address"
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  placeholderTextColor="#999"
+                />
 
-          <Text style={styles.label}>Password</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Password"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            autoCapitalize="none"
-            placeholderTextColor="#999"
-          />
+                <Text style={styles.label}>Password</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Password"
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry
+                  autoCapitalize="none"
+                  placeholderTextColor="#999"
+                />
 
-          <TouchableOpacity style={styles.loginButton} onPress={handleLoginPress}>
-            <Text style={styles.loginButtonText}>SIGN IN</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+                <TouchableOpacity style={styles.loginButton} onPress={handleLoginPress} disabled={isLoading}>
+                  {isLoading ? (<ActivityIndicator color="#fff" />) : (
+                    <Text style={styles.loginButtonText}>SIGN IN</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </ScrollView>
+        </TouchableWithoutFeedback>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
@@ -109,8 +126,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#ec787c', 
   },
-  centeredView: {
+  keyboardAvoidingContainer: {
     flex: 1,
+  },
+  scrollContainer: {
+    flexGrow: 1,
+    justifyContent: 'center',
+  },
+  centeredView: {
     justifyContent: 'center', 
     alignItems: 'center',    
     padding: 20, 
@@ -166,7 +189,7 @@ const styles = StyleSheet.create({
   input: {
     width: '100%',
     height: 48,
-    backgroundColor: '#fff', 
+    backgroundColor: '#f9f9f9', 
     borderWidth: 1,
     borderColor: '#ccc', 
     borderRadius: 6,
