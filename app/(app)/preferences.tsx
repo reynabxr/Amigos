@@ -192,16 +192,19 @@ export default function DietaryPreferencesScreen() {
 
       {/* Custom Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={handleGoBack} style={styles.backButton}>
+        {!isOnboarding && (<TouchableOpacity onPress={handleGoBack} style={styles.backButton}>
           <Ionicons name="arrow-back" size={28} color="#333" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Dietary Restrictions</Text>
-        <View style={styles.headerRightPlaceholder} />
+        )}
+        <Text style={
+          isOnboarding ? styles.headerTitleCentered : styles.headerTitle
+          }>Dietary Restrictions</Text>
+        {!isOnboarding && (<View style={styles.headerRightPlaceholder} />)}
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContentContainer}>
         <Text style={styles.subtitle}>
-          Help us to understand your dietary restrictions to recommend suitable food places.
+          Help us to understand your dietary restrictions to recommend suitable food places. You can always change these preferences later.
         </Text>
 
         <View style={styles.tagsContainer}>
@@ -285,6 +288,12 @@ const styles = StyleSheet.create({
   },
   headerRightPlaceholder: {
     width: 28 + 10,
+  },
+  headerTitleCentered: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    flex: 1,
+    textAlign: 'center',
   },
   scrollContentContainer: {
     paddingHorizontal: 20,
