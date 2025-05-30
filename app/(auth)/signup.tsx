@@ -45,8 +45,12 @@ const SignupPage = () => {
       if (response.success && response.user) {
         Alert.alert(
           'Account created successfully!',
-          'Welcome to Amigos!'
+          `Welcome to Amigos! Let's set up your dietary preferences.`
         );
+        router.replace({
+          pathname: '/(app)/preferences',
+          params: { isOnboarding: 'true'},
+        }); // navigate to preferences screen
       } else {
         // handle errors
         let errorMessage = response.message || response.error || 'Signup failed. Please try again.';

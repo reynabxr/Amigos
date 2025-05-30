@@ -36,7 +36,6 @@ const LoginPage = () => {
     try {
       const response = await firebaseSignIn(email.trim(), password.trim());
       if (response.success && response.user) {
-        Alert.alert('Login Successful', 'Welcome back to Amigos!');
         router.replace('../(app)/home'); // navigate to home screen
       } else {
         // handle errors

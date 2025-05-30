@@ -1,14 +1,15 @@
 import { FontAwesome5, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
 import {
-    Image,
-    SafeAreaView,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  Image,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 
 
@@ -93,7 +94,14 @@ export default function Groups() {
       </ScrollView>
       <View style={styles.createGroupButtonContainer}>
         <TouchableOpacity style={styles.createGroupButton} onPress={handleCreateGroup}>
-          <Text style={styles.createGroupButtonText}>+ Create New Group</Text>
+          <LinearGradient
+            colors={['#ea4080', '#FFC174']} 
+            start={{ x: 0, y: 0.5 }}
+            end={{ x: 1, y: 0.5 }}
+            style={styles.gradient}
+          >
+            <Text style={styles.createGroupButtonText}>+ Create New Group</Text>
+          </LinearGradient>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -156,19 +164,25 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  createGroupButtonContainer: { 
+  createGroupButtonContainer: {
     paddingHorizontal: 20,
-    paddingVertical: 15,
-    borderTopWidth: 1,
+    paddingVertical: 15, // Padding around the button
+    borderTopWidth: 1, 
     borderTopColor: '#f0f0f0',
-    backgroundColor: '#FFFFFF', 
+    backgroundColor: '#fff', 
   },
   createGroupButton: {
-    backgroundColor: '#EA4080', 
-    paddingVertical: 15, 
-    borderRadius: 25,
+    borderRadius: 25, 
+    shadowColor: '#000', 
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  gradient: {
+    paddingVertical: 15,
     alignItems: 'center',
-    justifyContent: 'center', 
+    borderRadius: 25, 
   },
   createGroupButtonText: {
     color: 'white',

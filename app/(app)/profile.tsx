@@ -1,31 +1,63 @@
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { signOut } from 'firebase/auth';
-import React, { useState } from 'react';
+import { doc, getDoc } from 'firebase/firestore';
+import React, { useEffect, useState } from 'react';
 import {
   Alert,
-  Image,
   SafeAreaView,
   ScrollView,
   StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
-import { auth } from '../../services/firebaseConfig';
-
-
-// Placeholder for user data 
-const initialUserData = {
-  username: 'Tom',
-  email: 'tom@example.com',
-  profilePictureUrl: 'https://via.placeholder.com/100?text=User', // Placeholder image
-};
+import { UserProfile } from '../../services/authService';
+import { auth, db } from '../../services/firebaseConfig';
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const [userData, setUserData] = useState(initialUserData); // To be managed 
+  const [userData, setUserData] = useState<Partial<UserProfile>>({
+    username: '',
+    email: '',
+  }); 
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchuserData = async () => {
+      setIsLoading(true);
+      const currentUser = auth.currentUser;
+
+      if (currentUser) {
+        let fetchedUsername = currentUser.displayName || '';
+        let fetchedEmail = currentUser.email || '';
+      
+        try {
+          const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+          if (userDoc.exists()) {
+            const firestoreProfile = userDoc.data() as UserProfile;
+            fetchedUsername = firestoreProfile.username || fetchedUsername;
+            fetchedEmail = firestoreProfile.email || fetchedEmail;
+          } 
+        } catch (error) {
+          console.error('Error fetching user data:', error);
+          Alert.alert('Error', 'Could not fetch user data.');
+        }
+
+        setUserData({
+          username: fetchedUsername,
+          email: fetchedEmail,
+        });
+      } else {
+        console.warn('No user is currently signed in.');
+        Alert.alert('Error', 'No user is currently signed in.');
+        router.replace('/(auth)/login'); // redirect to login if no user
+      }
+      setIsLoading(false);
+    };
+    fetchuserData();
+  }, []);
 
   const handleEditUsername = () => {
     console.log('Navigate to Edit Username screen');
@@ -35,7 +67,10 @@ export default function ProfileScreen() {
 
   const handleChangePreferences = () => {
     console.log('Navigate to Dietary Preferences');
-    router.push('/preferences'); 
+    router.push({
+      pathname: './preferences',
+      params: { isOnboarding: 'false' },
+    }); 
   };
 
   const handleLogout = () => {
@@ -48,13 +83,8 @@ export default function ProfileScreen() {
           text: "Log Out",
           onPress: async () => {
             try {
-              // 'auth' is your initialized Firebase Auth instance
-              await signOut(auth); // Use the imported auth instance
+              await signOut(auth);
               console.log("ProfileScreen: User logged out successfully from Firebase via signOut.");
-              // The RootLayout's onAuthStateChanged listener should now handle the redirect.
-              // You might not even need a router.replace() here if RootLayout is robust.
-              // However, an explicit redirect can make the UX feel faster.
-              // router.replace('/(auth)/login'); // Optional: for immediate UI feedback
             } catch (error) {
               console.error("ProfileScreen: Error logging out: ", error);
               Alert.alert("Error", "Could not log out. Please try again.");
@@ -66,6 +96,7 @@ export default function ProfileScreen() {
     );
   };
 
+/* delete account functionality 
   const handleDeleteAccount = () => {
     Alert.alert(
       "Delete Account",
@@ -85,13 +116,14 @@ export default function ProfileScreen() {
       ]
     );
   };
+  */
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" />
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.profileHeader}>
-          <Image source={{ uri: userData.profilePictureUrl }} style={styles.profilePicture} />
+          {/*} <Image source={{ uri: userData.profilePictureUrl }} style={styles.profilePicture} /> */}
           <Text style={styles.username}>{userData.username}</Text>
           <Text style={styles.email}>{userData.email}</Text>
         </View>
@@ -117,7 +149,7 @@ export default function ProfileScreen() {
             <Text style={styles.menuItemText}>Log Out</Text>
           </TouchableOpacity>
         </View>
-
+        {/* exclude delete account functionality for now
         <View style={styles.dangerZone}>
           <TouchableOpacity
             style={[styles.menuItem, styles.deleteButton]}
@@ -127,6 +159,7 @@ export default function ProfileScreen() {
             <Text style={[styles.menuItemText, styles.deleteButtonText]}>Delete Account</Text>
           </TouchableOpacity>
         </View>
+        */}
       </ScrollView>
     </SafeAreaView>
   );
