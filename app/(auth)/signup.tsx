@@ -2,14 +2,19 @@
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
+  Keyboard,
+  KeyboardAvoidingView,
   SafeAreaView,
+  ScrollView,
   StatusBar,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  TouchableWithoutFeedback,
+  View,
 } from 'react-native';
 import { firebaseSignUp } from '../../services/authService';
 
@@ -78,67 +83,79 @@ const SignupPage = () => {
   return (
     <SafeAreaView style={styles.screenContainer}>
       <StatusBar barStyle="dark-content" />
-      <View style={styles.centeredView}>
-        <View style={styles.card}>
-          <Text style={styles.signUpTitle}>Create Account</Text>
+      <KeyboardAvoidingView
+        behavior={"padding"}
+        style={styles.keyboardAvoidingContainer}
+        keyboardVerticalOffset = {0}
+      >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <ScrollView contentContainerStyle={styles.scrollContainer}>
+            <View style={styles.centeredView}>
+              <View style={styles.card}>
+                <Text style={styles.signUpTitle}>Sign Up</Text>
 
-          <View style={styles.signInPromptContainer}>
-            <Text style={styles.alreadyRegisteredText}>Already have an account? </Text>
-            <TouchableOpacity onPress={handleSignInPress}>
-              <Text style={styles.signInLink}>Sign In</Text>
-            </TouchableOpacity>
-          </View>
+                <View style={styles.signInPromptContainer}>
+                  <Text style={styles.alreadyRegisteredText}>Already have an account? </Text>
+                  <TouchableOpacity onPress={handleSignInPress}>
+                    <Text style={styles.signInLink}>Sign In</Text>
+                  </TouchableOpacity>
+                </View>
 
-          <View style={styles.divider} />
+                <View style={styles.divider} />
 
-          <Text style={styles.label}>Username</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Choose a username"
-            value={username}
-            onChangeText={setUsername}
-            autoCapitalize="none"
-            placeholderTextColor="#999"
-          />
+                <Text style={styles.label}>Username</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Choose a username"
+                  value={username}
+                  onChangeText={setUsername}
+                  autoCapitalize="none"
+                  placeholderTextColor="#999"
+                />
 
-          <Text style={styles.label}>Email</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Email address"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            placeholderTextColor="#999"
-          />
+                <Text style={styles.label}>Email</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Email address"
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  placeholderTextColor="#999"
+                />
 
-          <Text style={styles.label}>Password</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Create a password"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            autoCapitalize="none"
-            placeholderTextColor="#999"
-          />
+                <Text style={styles.label}>Password</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Create a password"
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry
+                  autoCapitalize="none"
+                  placeholderTextColor="#999"
+                />
 
-          <Text style={styles.label}>Confirm Password</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Confirm your password"
-            value={confirmPassword}
-            onChangeText={setConfirmPassword}
-            secureTextEntry
-            autoCapitalize="none"
-            placeholderTextColor="#999"
-          />
+                <Text style={styles.label}>Confirm Password</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Confirm your password"
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  secureTextEntry
+                  autoCapitalize="none"
+                  placeholderTextColor="#999"
+                />
 
-          <TouchableOpacity style={styles.signupButton} onPress={handleSignupPress}>
-            <Text style={styles.signupButtonText}>SIGN UP</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+                <TouchableOpacity style={styles.signupButton} onPress={handleSignupPress}>
+                  {isLoading ? (<ActivityIndicator color="#fff" />) : (
+                    <Text style={styles.signupButtonText}>SIGN UP</Text>
+                  )} 
+                </TouchableOpacity>
+              </View>
+            </View>
+          </ScrollView>
+        </TouchableWithoutFeedback>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
@@ -148,11 +165,18 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#ec787c', 
   },
-  centeredView: {
+  keyboardAvoidingContainer: {
     flex: 1,
+  },
+  scrollContainer: {
+    flexGrow: 1,
+    justifyContent: 'center',
+  },
+  centeredView: {
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    paddingVertical: 20,
+    paddingHorizontal: 20,
   },
   card: {
     backgroundColor: 'white',
@@ -202,7 +226,7 @@ const styles = StyleSheet.create({
   input: {
     width: '100%',
     height: 48,
-    backgroundColor: '#fff',
+    backgroundColor: '#f9f9f9',
     borderWidth: 1,
     borderColor: '#ccc',
     borderRadius: 6,
