@@ -1,18 +1,18 @@
+import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Platform,
   SafeAreaView,
   ScrollView,
   StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 import { auth, db } from '../../services/firebaseConfig';
 
@@ -31,67 +31,85 @@ export default function DietaryPreferencesScreen() {
   const params = useLocalSearchParams<{ isOnboarding?: string }>();
   const isOnboarding = params.isOnboarding === 'true'; // check if user is onboarding or just editing preferences
   const [selectedPreferences, setSelectedPreferences] = useState<string[]>([]);
+  const [initialPreferences, setInitialPreferences] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
-  useEffect(() => {
-    const fetchPreferences = async () => {
+  const fetchPreferences = useCallback(async () => {
       setIsLoading(true);
       const currentUser = auth.currentUser;
       if (currentUser) {
         try {
           const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+          let currentPrefs: string[] = [];
           if (userDoc.exists()) {
             const userData = userDoc.data();
             if (userData.dietaryPreferences && Array.isArray(userData.dietaryPreferences)) {
               if (userData.dietaryPreferences.length === 0) {
-                setSelectedPreferences([NO_RESTRICTIONS]);
-              } else if (userData.dietaryPreferences.includes(NO_RESTRICTIONS)) {
-                setSelectedPreferences([NO_RESTRICTIONS]);
+                currentPrefs = [NO_RESTRICTIONS];
               } else {
-              setSelectedPreferences(userData.dietaryPreferences);
+                currentPrefs = userData.dietaryPreferences.filter(p => p !== NO_RESTRICTIONS);
+                if (currentPrefs.length === 0 && userData.dietaryPreferences.length > 0) {
+                  currentPrefs = [NO_RESTRICTIONS];
+                }
               }
-            } else if (userData.dietaryPreferences === undefined) {
-                setSelectedPreferences([NO_RESTRICTIONS]);
+            } else {
+              currentPrefs = [NO_RESTRICTIONS];
             }
           } else {
-            setSelectedPreferences([NO_RESTRICTIONS]);
+            currentPrefs = [NO_RESTRICTIONS];
           }
+          setSelectedPreferences([...currentPrefs]);
+          setInitialPreferences([...currentPrefs]);
         } catch (error) {
           console.error('Error fetching dietary preferences:', error);
           Alert.alert('Error', 'Could not load your dietary preferences.');
           setSelectedPreferences([NO_RESTRICTIONS]);
+          setInitialPreferences([NO_RESTRICTIONS]);
         }
       } else {
         console.warn('No user is currently signed in.');
         router.replace('/(auth)/login'); // redirect to login if no user
       }
       setIsLoading(false);
-    };
-    fetchPreferences();
-  }, []);
-        
+    }, []);
+  
+  useEffect(() => {
+   fetchPreferences();
+   }, [fetchPreferences]);
+  
+  useFocusEffect(
+    useCallback(() => {
+      console.log("DietaryPreferencesScreen: Screen focused, fetching preferences.");
+      fetchPreferences();
+      return () => {
+        // Cleanup if needed
+      };
+    }, [fetchPreferences])
+  );
+
+  const handleGoBack = () => {
+    router.replace('/(app)/profile'); // go back to profile screen
+  };
+
   const handleTogglePreference = (preference: string) => {
     setSelectedPreferences((prevSelected) => {
-    if (preference === NO_RESTRICTIONS) {
-      if (prevSelected.includes(NO_RESTRICTIONS)) {
-        return [];
+      let newSelectedState: string[];
+      if (preference === NO_RESTRICTIONS) {
+        newSelectedState = prevSelected.includes(NO_RESTRICTIONS) ? [] : [NO_RESTRICTIONS];
       } else {
-        return [NO_RESTRICTIONS];
+        const currentlySelected = prevSelected.includes(preference);
+        let tempSelected = prevSelected.filter(p => p !== NO_RESTRICTIONS);
+        
+        if (currentlySelected) {
+          tempSelected = tempSelected.filter(p => p !== preference);
+        } else {
+          tempSelected = [...tempSelected, preference];
+        }
+        newSelectedState = tempSelected.length == 0? [NO_RESTRICTIONS] : tempSelected;
       }
-    } else {
-      const newSelected = prevSelected.includes(preference)
-        ? prevSelected.filter((p) => p !== preference && p !== NO_RESTRICTIONS) // deselect
-        : [...prevSelected.filter(p => p !== NO_RESTRICTIONS), preference]; // select
-      if (newSelected.length === 0 && prevSelected.includes(NO_RESTRICTIONS) && prevSelected.length === 1) {
-        return [NO_RESTRICTIONS];
-      }
-      if (newSelected.length === 0) {
-        return [NO_RESTRICTIONS];
-      }
-      return newSelected;
-    }
-    });
+        return newSelectedState;
+      });
   };
 
   const savePreferences = async () => {
@@ -107,13 +125,14 @@ export default function DietaryPreferencesScreen() {
     try {
       const userDocRef = doc(db, 'users', currentUser.uid);
       const userDoc = await getDoc(userDocRef);
+      const dataToUpdate = {dietaryPreferences: preferencesToSave};
       if (userDoc.exists()) {
-        await updateDoc(userDocRef, {
-          dietaryPreferences: selectedPreferences,
-        });
+        await updateDoc(userDocRef, dataToUpdate);
       } else {
         await setDoc(userDocRef, {
-          dietaryPreferences: selectedPreferences,
+          ...dataToUpdate,
+          email: currentUser.email,
+          username: currentUser.displayName || '',
           createdAt: new Date(),
         }, { merge: true });
       }
@@ -124,16 +143,32 @@ export default function DietaryPreferencesScreen() {
       return false;
     }
   };
+
+  const havePreferencesChanged = () => {
+    const currentToCompare = selectedPreferences.includes(NO_RESTRICTIONS) && selectedPreferences.length === 1
+        ? []
+        : selectedPreferences.filter(p => p !== NO_RESTRICTIONS);
+    const initialToCompare = initialPreferences.includes(NO_RESTRICTIONS) && initialPreferences.length === 1
+        ? []
+        : initialPreferences.filter(p => p !== NO_RESTRICTIONS);
+
+    const sortedCurrent = [...currentToCompare].sort();
+    const sortedInitial = [...initialToCompare].sort();
+    const changed = JSON.stringify(sortedCurrent) !== JSON.stringify(sortedInitial);
+    console.log("Preferences changed:", changed, "Current:", sortedCurrent, "Initial:", sortedInitial);
+    return changed;
+  };
   
   const handleConfirm = async () => {
     setIsSaving(true);
     console.log('Selected Preferences:', selectedPreferences);
     const success = await savePreferences();
     if (success) {
+      setInitialPreferences([...selectedPreferences]);
       if (isOnboarding) {
         router.replace('/(app)/home');
       } else {
-        router.replace('./profile');
+        handleGoBack();
       }
     } 
     setIsSaving(false);
@@ -149,13 +184,19 @@ export default function DietaryPreferencesScreen() {
     );
   }
 
+  const canConfirm = isOnboarding || havePreferencesChanged();
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" />
 
       {/* Custom Header */}
       <View style={styles.header}>
+        <TouchableOpacity onPress={handleGoBack} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={28} color="#333" />
+        </TouchableOpacity>
         <Text style={styles.headerTitle}>Dietary Restrictions</Text>
+        <View style={styles.headerRightPlaceholder} />
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContentContainer}>
@@ -166,7 +207,6 @@ export default function DietaryPreferencesScreen() {
         <View style={styles.tagsContainer}>
           {ALL_OPTIONS.map((preference) => {
             const isSelected = selectedPreferences.includes(preference);
-            const isNoRestrictionsOption = preference === NO_RESTRICTIONS;
             return (
               <TouchableOpacity
                 key={preference}
@@ -192,9 +232,13 @@ export default function DietaryPreferencesScreen() {
 
       {/* Confirm Button Area */}
       <View style={styles.actionButtonsContainer}>
-        <TouchableOpacity onPress={handleConfirm} style={styles.actionButton} disabled={isSaving}>
+        <TouchableOpacity 
+          onPress={handleConfirm} 
+          style={styles.actionButton} 
+          disabled={isSaving || !canConfirm }
+        >
           <LinearGradient
-            colors={isSaving ? ['#ccc', '#aaa'] : ['#ea4080', '#FFC174']}
+            colors={(isSaving || !canConfirm) ? ['#ccc', '#aaa'] : ['#ea4080', '#FFC174']}
             start={{ x: 0, y: 0.5 }}
             end={{ x: 1, y: 0.5 }}
             style={styles.gradient}
@@ -224,17 +268,23 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 15,
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 20,
+    paddingTop: 10,
     paddingBottom: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
+    backgroundColor: '#fff'
+  },
+  backButton: {
+    padding: 5,
   },
   headerTitle: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: 'bold',
-    color: '#333',
+  },
+  headerRightPlaceholder: {
+    width: 28 + 10,
   },
   scrollContentContainer: {
     paddingHorizontal: 20,
@@ -279,8 +329,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
 actionButtonsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
     paddingHorizontal: 20,
     paddingVertical: 15,
     borderTopWidth: 1,
@@ -288,14 +336,13 @@ actionButtonsContainer: {
     backgroundColor: '#fff',
   },
   actionButton: {
-    minWidth: '45%',
+    minWidth: '100%',
     borderRadius: 25,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
     shadowRadius: 3,
     elevation: 3,
-    marginHorizontal: 5,
   },
   gradient: {
     paddingVertical: 15,

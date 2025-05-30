@@ -1,9 +1,10 @@
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { signOut } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   SafeAreaView,
   ScrollView,
@@ -23,9 +24,9 @@ export default function ProfileScreen() {
     email: '',
   }); 
   const [isLoading, setIsLoading] = useState(true);
+  const [currentUsernameForEdit, setCurrentUsernameForEdit] = useState('');
 
-  useEffect(() => {
-    const fetchuserData = async () => {
+  const fetchuserData = useCallback(async () => {
       setIsLoading(true);
       const currentUser = auth.currentUser;
 
@@ -39,7 +40,10 @@ export default function ProfileScreen() {
             const firestoreProfile = userDoc.data() as UserProfile;
             fetchedUsername = firestoreProfile.username || fetchedUsername;
             fetchedEmail = firestoreProfile.email || fetchedEmail;
-          } 
+            setCurrentUsernameForEdit(firestoreProfile.username || '');
+          } else {
+            setCurrentUsernameForEdit(currentUser.displayName || '');
+          }
         } catch (error) {
           console.error('Error fetching user data:', error);
           Alert.alert('Error', 'Could not fetch user data.');
@@ -55,14 +59,26 @@ export default function ProfileScreen() {
         router.replace('/(auth)/login'); // redirect to login if no user
       }
       setIsLoading(false);
-    };
-    fetchuserData();
-  }, []);
+    }, []);
 
+  useEffect(() => {
+    fetchuserData();
+  }, [fetchuserData]);
+
+  useFocusEffect(
+    useCallback(() => {
+      console.log("ProfileScreen: Screen focused, fetching user data.");
+      fetchuserData();
+      return () => {
+      };
+    }, [fetchuserData])
+  );
   const handleEditUsername = () => {
     console.log('Navigate to Edit Username screen');
-    // TODO: edit username screen 
-    Alert.alert("Edit Username", "Navigation to edit username screen placeholder.");
+    router.push({
+      pathname: './edit-username',
+      params: { currentUsername: currentUsernameForEdit },
+    });
   };
 
   const handleChangePreferences = () => {
@@ -117,6 +133,16 @@ export default function ProfileScreen() {
     );
   };
   */
+
+  if (isLoading) {
+    return (
+        <SafeAreaView style={styles.safeArea}>
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+            <ActivityIndicator size="large" color="#E15A7C" />
+          </View>
+        </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>

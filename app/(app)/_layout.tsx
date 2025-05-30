@@ -41,6 +41,13 @@ export default function AppTabLayout() {
           href: null,     // Hides this from the tab bar
         }}
       />
+      <Tabs.Screen
+        name="edit-username" 
+        options={{
+          headerShown: false,
+          href: null,     // Hides this from the tab bar
+        }}
+      />
       <Tabs.Screen 
         name="index"
         options={{

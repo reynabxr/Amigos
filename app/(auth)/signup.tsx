@@ -58,6 +58,8 @@ const SignupPage = () => {
           errorMessage = 'This email is already in use. Please try another one.';
         } else if (response.message === 'auth/weak-password') {
           errorMessage = 'The password is too weak. Please choose a stronger password.';
+        } else if (response.message === 'auth/username-already-in-use') {
+          errorMessage = 'This username is already taken. Please choose a different one.';
         }
         Alert.alert('Signup Failed', errorMessage);
       }
