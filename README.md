@@ -1,6 +1,7 @@
 ## 🚀 Amigos Deployment Guide
 
-Let's guide you through setting up the project locally, to deploy and test Amigos! Note that our app is built to run on iOS devices. 
+Let's guide you through setting up the project locally, to deploy and test Amigos! Note that our app is built to run on iOS devices / iOS simulator, hence you will need a MacBook to run this app.
+
 
 ### 🔑 Prerequisites
 
@@ -21,13 +22,12 @@ Before you begin, ensure you have the following installed:
   ```bash
   npm install -g expo-cli
   ```
-- **EAS CLI**: For building and submitting your app.
-  ```bash
-  npm install -g eas-cli
-  ```
-- **Xcode (Optional, for iOS Simulator)**:
-  - Download Xcode from the Mac App Store.
-  - After installation, open Xcode at least once. It will perform initial setup and install necessary components.
+- **Xcode (iOS Simulator)**:
+  - Download [Xcode](https://apps.apple.com/us/app/xcode/id497799835) from the Mac App Store.
+  - Once installed, launch Xcode so that it can complete its first launch and finish its initial setup.
+  - When prompted, select iOS under Platform Support to ensure that you download the iOS Simulator.
+  - Alternatively, download it from: Xcode > Settings > Components > Platform Support.
+
 
 ### 🔧 Installation & Setup
 
@@ -43,18 +43,33 @@ Before you begin, ensure you have the following installed:
     npm install
     ```
 
-### 📱 Running the App (Development & Local Testing)
 
-Once the dependencies are installed, you can run the app locally for development and testing:
+### 📱 Running the App on iOS simulator (Recommended)
 
-1. **Connect your device**:
-   - Ensure your iOS Simulator is running, or your iOS device is plugged in.
-  
-2.  **Start the development server**:
+1.  **Start the development server**: In the Amigos directory, run:
     ```bash
-    npm expo run:ios --device
+    npx expo run:ios --device
     ```
 
-4.  **Select your device**:
-    - Select the device that you wish to run the app on.
-    - The app should automatically download and run on your device. 
+2.  **Select your device**:
+    - Select the device that you wish to run the app on. Navigate using the arrow keys.
+    - Press Enter and wait for the app to build. 
+    - The app should automatically download and run on the iOS simulator.
+    
+
+### 📱 Running the App on your iOS device (Alternative)
+
+1.  **Enable Developer Mode on your iPhone**:
+    - Navigate to Settings > Privacy & Security > Developer Mode > Enable. You will be prompted to restat your device and confirm the activation. 
+    - Connect your iPhone to your MacBook and click "Trust". 
+    - Open Xcode > Window > Devices and Simulators > Devices, and ensure that your device is connected.
+
+2. **Start the development server**: In the Amigos directory, run:
+    ```bash
+    npx expo run:ios --device
+    ```
+
+2.  **Select your device**:
+    - Select the device that you wish to run the app on. It should be the first one listed. 
+    - Press Enter and wait for the app to build.
+    - The app should automatically download and run on your device.
