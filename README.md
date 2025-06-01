@@ -48,13 +48,11 @@ Before you begin, ensure you have the following installed:
 
 1.  **Start the development server**: In the Amigos directory, run:
     ```bash
-    npx expo run:ios --device
+    npm start
     ```
 
-2.  **Select your device**:
-    - Select the device that you wish to run the app on. Navigate using the arrow keys.
-    - Press Enter and wait for the app to build. 
-    - The app should automatically download and run on the iOS simulator.
+2.  **Open the iOS simulator**:
+    - Press `i` to open the iOS simulator and run the app. 
     
 
 ### 📱 Running the App on your iOS device (Alternative)
