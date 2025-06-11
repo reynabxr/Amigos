@@ -1,6 +1,8 @@
 import { FontAwesome5, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import React from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { collection, onSnapshot, orderBy, query, where } from 'firebase/firestore';
+import React, { useCallback, useState } from 'react';
 import {
   Image,
   SafeAreaView,
@@ -11,9 +13,9 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+import { auth, db } from '../../services/firebaseConfig';
 
-
-interface GroupData { 
+export interface GroupData { 
   id: string;
   name: string;
   members: string[];
@@ -22,48 +24,28 @@ interface GroupData {
   iconSet?: IconSetType;
   iconColor?: string;
   iconSource?: any;
+  ownerId: string;
+  createdAt: number;
 }
 
-// Sample Data (to be replaced with actual data)
-const groupsData: GroupData[] = [ 
-  {
-    id: '1',
-    name: 'Tan Family',
-    members: ['Jake', 'Amy', 'Cassandra'],
-    iconType: 'vector', 
-    iconName: 'people-outline',
-    iconSet: Ionicons,
-    iconColor: '#4A90E2',
-  },
-  {
-    id: '2',
-    name: 'Study Group',
-    members: ['Jun Jie', 'Tom', 'Samantha'],
-    iconType: 'vector',
-    iconName: 'book-outline',
-    iconSet: Ionicons,
-    iconColor: '#50E3C2',
-  },
-  {
-    id: '3',
-    name: 'Intern Friends',
-    members: ['Yong Qi', 'Celina', 'Joy'],
-    iconType: 'vector',
-    iconName: 'desktop-outline',
-    iconSet: Ionicons,
-    iconColor: '#7B68EE',
-  },
-];
+export type IconSetType = typeof Ionicons | typeof MaterialCommunityIcons | typeof FontAwesome5;
 
-type IconSetType = typeof Ionicons | typeof MaterialCommunityIcons | typeof FontAwesome5;
+const GroupItem: React.FC<GroupData> = ({ id, name, members, iconType, iconName, iconSet: IconSet, iconColor, iconSource }) => {
+  const router = useRouter();
+  const handleGroupPress = () => {
+    router.push(`/groups/${id}` as any);
+  };
 
-const GroupItem: React.FC<GroupData> = ({ name, members, iconType, iconName, iconSet: IconSet, iconColor, iconSource }) => {
   return (
-    <TouchableOpacity style={styles.groupItem}>
+    <TouchableOpacity style={styles.groupItem} onPress={handleGroupPress}>
       <View style={styles.iconContainer}>
-        {iconType === 'image' && iconSource && <Image source={iconSource} style={styles.groupIconImage} />}
+        {iconType === 'image' && iconSource && (<Image source={iconSource} style={styles.groupIconImage} />)}
         {iconType === 'vector' && IconSet && iconName && (
-          <IconSet name={iconName} size={28} color={iconColor || '#555'} />
+          React.createElement(IconSet, {
+            name: iconName,
+            size: 28,
+            color: iconColor || '#555',
+          })
         )}
       </View>
       <View style={styles.groupInfo}>
@@ -75,19 +57,70 @@ const GroupItem: React.FC<GroupData> = ({ name, members, iconType, iconName, ico
 };
 
 export default function Groups() {
+  const router = useRouter();
+  const [groups, setGroups] = useState<GroupData[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const fetchGroups = useCallback(() => {
+    const user = auth.currentUser;
+    if (!user) {
+      console.warn('No user is currently signed in.');
+      setIsLoading(false);
+      return;
+    }
+    setIsLoading(true);
+    const groupsRef = collection(db, 'groups');
+    const q = query(
+      groupsRef,
+      where('members', 'array-contains', user.uid),
+      orderBy('createdAt', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const fetchedGroups: GroupData[] = [];
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        fetchedGroups.push({
+          id: doc.id,
+          name: data.name,
+          members: data.members,
+          iconType: data.iconType,
+          iconName: data.iconName,
+          iconSet: Ionicons,
+          iconColor: data.iconColor,
+          iconSource: data.iconSource,
+          ownerId: data.ownerId,
+          createdAt: data.createdAt,
+        });
+      });
+      setGroups(fetchedGroups);
+      setIsLoading(false);
+    }, (error) => {
+      console.error('Error fetching groups:', error);
+      setIsLoading(false);
+    });
+
+    return unsubscribe;
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchGroups();
+      return () => {};
+    }, [fetchGroups])
+  );
 
   const handleCreateGroup = () => {
     console.log('Create New Group pressed');
-    // TODO: Create group page
-    alert('Create New Group!');
+    router.push('/group-creation');
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" />
       <ScrollView contentContainerStyle={styles.container}>
-        {groupsData.length > 0 ? (
-          groupsData.map(group => <GroupItem key={group.id} {...group} />)
+        {groups.length > 0 ? (
+          groups.map(group => <GroupItem key={group.id} {...group} />)
         ) : (
           <Text style={styles.emptyText}>You are not part of any groups yet.</Text>
         )}
@@ -113,7 +146,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FFFFFF',
   },
-  container: { // for ScrollView's content
+  container: {
     paddingHorizontal: 20,
     paddingTop: 20, 
     paddingBottom: 20, 
@@ -166,7 +199,7 @@ const styles = StyleSheet.create({
   },
   createGroupButtonContainer: {
     paddingHorizontal: 20,
-    paddingVertical: 15, // Padding around the button
+    paddingVertical: 15,
     borderTopWidth: 1, 
     borderTopColor: '#f0f0f0',
     backgroundColor: '#fff', 

@@ -23,7 +23,19 @@ export default function AppTabLayout() {
         options={{
           title: 'Groups',
           tabBarIcon: ({ color, size }) => (<MaterialCommunityIcons name="account-group-outline" size={size} color={color} />),
-          headerTitle: 'My Groups',
+          headerTitle: 'My Groups'
+        }}
+      />
+      <Tabs.Screen 
+        name="[id]"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen 
+        name="group-creation"
+        options={{
+          href: null,
         }}
       />
       <Tabs.Screen
@@ -53,7 +65,7 @@ export default function AppTabLayout() {
         options={{
           href: null,
         }}
-        />
+      />
     
     </Tabs>
   );
