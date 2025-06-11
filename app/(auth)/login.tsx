@@ -15,7 +15,7 @@ import {
   TouchableWithoutFeedback,
   View,
 } from 'react-native';
-import { firebaseSignIn } from '../../services/authService';
+import { firebaseForgotPassword, firebaseSignIn } from '../../services/authService';
 
 const LoginPage = () => {
   const router = useRouter();
@@ -61,7 +61,48 @@ const LoginPage = () => {
   const handleSignUpPress = () => {
     router.push('/signup'); 
   };
-
+  
+  const handleForgotPassword = () => {
+      Alert.prompt(
+        "Forgot Password",
+        "Please enter your email address to receive a password reset link.",
+        [
+          {
+            text: "Cancel",
+            style: "cancel",
+          },
+          {
+            text: "Send",
+            onPress: async (emailInput) => {
+              if (emailInput && emailInput.trim()) {
+                try {
+                  const response = await firebaseForgotPassword(emailInput.trim());
+                  if (response.success) { // reset link sent if email exists (handled by firebase)
+                    Alert.alert(
+                      "Check Your Email",
+                      "If this email is registered, a password reset link has been sent."
+                    );
+                  } else { // not a valid email or other error
+                      Alert.alert(
+                      "Error",
+                      "This email is invalid. Please check and try again."
+                    );
+                    console.error("Password Reset Failed:", response.error);
+                  }
+                } catch (error) {
+                  console.error("Password Reset Exception:", error);
+                  Alert.alert("Error", "An unexpected error occurred.");
+                }
+              } else {
+                Alert.alert("Error", "Please enter an email address.");
+              }
+            },
+          },
+        ],
+        'plain-text' // text input field in the alert for user to enter their email
+      );
+    };
+  
   return (
     <SafeAreaView style={styles.screenContainer}>
       <StatusBar barStyle="dark-content" />
@@ -106,6 +147,10 @@ const LoginPage = () => {
                   autoCapitalize="none"
                   placeholderTextColor="#999"
                 />
+
+                <TouchableOpacity style={styles.forgotPasswordButton} onPress={handleForgotPassword}>
+                  <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+                </TouchableOpacity>
 
                 <TouchableOpacity style={styles.loginButton} onPress={handleLoginPress} disabled={isLoading}>
                   {isLoading ? (<ActivityIndicator color="#fff" />) : (
@@ -211,6 +256,16 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  forgotPasswordButton: {
+    alignSelf: 'flex-end', 
+    marginBottom: 20,
+    paddingVertical: 5,
+  },
+  forgotPasswordText: {
+    fontSize: 14,
+    color: '#007AFF',
+    fontWeight: '500',
   },
 });
 
