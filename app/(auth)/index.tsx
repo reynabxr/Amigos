@@ -29,17 +29,16 @@ export default function Index() {
         <StatusBar barStyle="light-content" />
 
         <View style={styles.contentContainer}>
-          {/* Logo Section */}
+          {/* logo */}
           <View style={styles.logoSection}>
             <Image source={logoImage} style={styles.logo} resizeMode="contain" />
             <Text style={styles.appName}>Amigos</Text>
             <Text style={styles.tagline}>Plan Less, Live More</Text>
           </View>
 
-          {/* Spacer View to push content appropriately */}
           <View style={styles.spacer} />
 
-          {/* Button Section */}
+          {/* sign in button */}
           <View style={styles.buttonSection}>
             <TouchableOpacity
               style={styles.button}
@@ -50,7 +49,7 @@ export default function Index() {
             </TouchableOpacity>
           </View>
 
-          {/* Create Account Link */}
+          {/* create account link */}
           <TouchableOpacity
             style={styles.bottomLinkButton}
             onPress={handleCreateAccount}
@@ -68,7 +67,7 @@ export default function Index() {
 const styles = StyleSheet.create({
   rootContainer: {
     flex: 1,
-    backgroundColor: '#EA4080', 
+    backgroundColor: '#ec787c', 
   },
   safeAreaContainer: {
     flex: 1,
