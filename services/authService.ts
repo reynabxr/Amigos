@@ -1,5 +1,6 @@
 import {
     createUserWithEmailAndPassword,
+    sendPasswordResetEmail,
     signInWithEmailAndPassword,
     updateProfile,
     User,
@@ -189,6 +190,26 @@ export const updateUsername = async (
         return { 
             success: false, 
             error: error.message || 'An error occurred while updating the username.',
+            message: error.code || error.message
+        };
+    }
+};
+
+// forgot password
+export const firebaseForgotPassword = async (
+    email: string
+): Promise<{ success: boolean; error?: string; message?: string }> => {
+    try {
+        await sendPasswordResetEmail(auth, email);
+        return { 
+            success: true, 
+            message: 'Password reset email sent successfully!' 
+        };
+    } catch (error: any) {
+        console.error('Firebase Forgot Password Error:', error)
+        return { 
+            success: false, 
+            error: error.message || 'An error occurred while sending the password reset email.',
             message: error.code || error.message
         };
     }
