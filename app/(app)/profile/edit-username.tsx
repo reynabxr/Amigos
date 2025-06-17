@@ -3,18 +3,18 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    SafeAreaView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  SafeAreaView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
-import { updateUsername } from '../../services/authService';
-import { auth } from '../../services/firebaseConfig';
+import { updateUsername } from '../../../services/authService';
+import { auth } from '../../../services/firebaseConfig';
 
 export default function EditUsernameScreen() {
     const router = useRouter();
@@ -31,10 +31,6 @@ export default function EditUsernameScreen() {
         }
     }, [params.currentUsername]);
 
-    const handleGoBack = () => {
-        router.replace('/(app)/profile'); // go back to profile screen
-    };
-
     const handleUpdateUsername = async () => {
         if (!newUsername.trim()) {
             setError('Username cannot be empty.');
@@ -45,7 +41,8 @@ export default function EditUsernameScreen() {
             return;
         }
         if (newUsername.trim() === originalUsername) {
-            handleGoBack();
+            router.back();
+            return;
         }
         setError('');
         setIsLoading(true);
@@ -60,7 +57,7 @@ export default function EditUsernameScreen() {
 
         const response = await updateUsername(currentUser.uid, newUsername.trim());
         if (response.success) {
-            router.replace('/(app)/profile'); // go back to profile screen
+            router.back();
         } else {
             setError(response.error || 'Failed to update username');
         }  
@@ -72,13 +69,7 @@ export default function EditUsernameScreen() {
     return (
         <SafeAreaView style={styles.safeArea}>
         <StatusBar barStyle="dark-content" />
-        <View style={styles.header}>
-            <TouchableOpacity onPress={handleGoBack} style={styles.backButton}>
-                <Ionicons name="arrow-back" size={28} color="#333" />
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>Edit Username</Text>
-            <View style={styles.headerRightPlaceholder} />
-        </View>
+        
         <View style={styles.container}>
             <Text style={styles.label}>New Username:</Text>
             <TextInput
@@ -118,29 +109,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 15,
-    paddingTop: 10,
-    paddingBottom: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  backButton: {
-    padding: 5,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  headerRightPlaceholder: {
-    width: 28 + 10,
-  },
   container: {
     flex: 1,
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    paddingTop: 30,
   },
   label: {
     fontSize: 16,

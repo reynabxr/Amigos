@@ -14,8 +14,8 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
-import { UserProfile } from '../../services/authService';
-import { auth, db } from '../../services/firebaseConfig';
+import { UserProfile } from '../../../services/authService';
+import { auth, db } from '../../../services/firebaseConfig';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -76,7 +76,7 @@ export default function ProfileScreen() {
   const handleEditUsername = () => {
     console.log('Navigate to Edit Username screen');
     router.push({
-      pathname: './edit-username',
+      pathname: '/profile/edit-username',
       params: { currentUsername: currentUsernameForEdit },
     });
   };

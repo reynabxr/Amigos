@@ -89,7 +89,7 @@ export default function DietaryPreferencesScreen() {
   );
 
   const handleGoBack = () => {
-    router.replace('/(app)/profile'); // go back to profile screen
+    router.replace('/profile'); // go back to profile screen
   };
 
   const handleTogglePreference = (preference: string) => {
