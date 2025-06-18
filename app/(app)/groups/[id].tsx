@@ -129,6 +129,17 @@ export default function GroupDetailsScreen() {
             )}
           </View>
           <Text style={styles.groupName}>{group.name}</Text>
+
+        {auth.currentUser?.uid && group.members.includes(auth.currentUser.uid) && (
+          <TouchableOpacity
+            style={styles.editButton}
+            onPress={handleManageGroupPress}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="create-outline" size={16} color="#fff" style={{ marginRight: 7 }} />
+            <Text style={styles.editButtonText}>Edit</Text>
+          </TouchableOpacity>
+        )}
         </View>
 
         <View style={styles.detailCard}>
@@ -143,22 +154,6 @@ export default function GroupDetailsScreen() {
             <Text style={styles.emptyMembersText}>No members in this group yet.</Text>
           )}
         </View>
-        {auth.currentUser?.uid && group.members.includes(auth.currentUser.uid) && (
-          <TouchableOpacity
-            style={styles.manageButtonTouchable}
-            onPress={handleManageGroupPress}
-            activeOpacity={0.8}
-          >
-            <LinearGradient
-              colors={['#ea4080', '#FFC174']}
-              start={{ x: 0, y: 0.5 }}
-              end={{ x: 1, y: 0.5 }}
-              style={styles.manageButtonGradient}
-            >
-              <Text style={styles.manageButtonText}>Manage Group</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -247,25 +242,20 @@ const styles = StyleSheet.create({
     color: '#888',
     fontStyle: 'italic',
   },
-  manageButtonTouchable: {
-  marginTop: 20,
-  borderRadius: 25,
-  shadowColor: '#000',
-  shadowOffset: { width: 0, height: 2 },
-  shadowOpacity: 0.15,
-  shadowRadius: 3,
-  elevation: 3,
-  width: '100%',
-},
-manageButtonGradient: {
-  paddingVertical: 15,
-  alignItems: 'center',
-  borderRadius: 25,
-  width: '100%',
-},
-manageButtonText: {
-  color: '#fff',
-  fontWeight: 'bold',
-  fontSize: 16,
-},
+  editButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'center',
+    backgroundColor: '#EA4080',
+    borderRadius: 16,
+    paddingVertical: 5,
+    paddingHorizontal: 14,
+    marginTop: 8,
+    marginBottom: 16,
+  },
+  editButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 14,
+  },
 });

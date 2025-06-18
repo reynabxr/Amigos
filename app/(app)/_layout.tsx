@@ -31,7 +31,6 @@ export default function AppTabLayout() {
             unsubscribeFromFirestore();
           }
         }, (error) => {
-          console.error("Error with Firestore snapshot listener:", error);
           unsubscribeFromFirestore();
         });
 
