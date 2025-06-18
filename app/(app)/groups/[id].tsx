@@ -4,7 +4,7 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, SafeAreaView, ScrollView, StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 
-import { collection, doc, getDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
 import { GroupData, IconSetType, availableIcons, getIconSetComponent } from '.';
 import { auth, db } from '../../../services/firebaseConfig';
 
@@ -88,6 +88,19 @@ export default function GroupDetailsScreen() {
     };
     fetchGroupDetails();
   }, [id, fetchMemberDisplayNames, router]);
+  
+  const [meetings, setMeetings] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!id) return;
+    const fetchMeetings = async () => {
+      const meetingsRef = collection(db, 'groups', id, 'meetings');
+      const snapshot = await getDocs(meetingsRef);
+      const meetingsList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setMeetings(meetingsList);
+    };
+    fetchMeetings();
+  }, [id])
 
   if (isLoading) {
     return (
@@ -152,6 +165,35 @@ export default function GroupDetailsScreen() {
             ))
           ) : (
             <Text style={styles.emptyMembersText}>No members in this group yet.</Text>
+          )}
+        </View>
+
+        <TouchableOpacity
+          style={styles.createMeetingButton}
+          onPress={() => router.push({ pathname: `/groups/[id]/create-meeting`, params: { id: group.id } })}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="calendar-outline" size={18} color="#fff" style={{ marginRight: 6 }} />
+          <Text style={styles.createMeetingButtonText}>Create New Meeting</Text>
+        </TouchableOpacity>
+
+        <View style={styles.detailCard}>
+          <Text style={styles.cardTitle}>Meetings</Text>
+          {meetings.length === 0 ? (
+            <Text style={styles.emptyMembersText}>No meetings yet.</Text>
+          ) : (
+            meetings.map(meeting => (
+              <TouchableOpacity
+                key={meeting.id}
+                style={styles.meetingItem}
+                onPress={() => router.push({ pathname: `/groups/[id]/meetings/[meetingId]`, params: { id: group.id, meetingId: meeting.id } })}
+              >
+                <Text style={styles.meetingName}>{meeting.name}</Text>
+                <Text style={styles.meetingMeta}>
+                  {new Date(meeting.date).toLocaleString()} @ {meeting.location}
+                </Text>
+              </TouchableOpacity>
+            ))
           )}
         </View>
       </ScrollView>
@@ -257,5 +299,34 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '600',
     fontSize: 14,
+  },
+  createMeetingButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'center',
+    backgroundColor: '#4A90E2', // Use a blue accent for meetings
+    borderRadius: 16,
+    paddingVertical: 7,
+    paddingHorizontal: 18,
+    marginBottom: 18,
+  },
+  createMeetingButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 15,
+  },
+  meetingItem: {
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  meetingName: {
+    fontWeight: 'bold',
+    fontSize: 16,
+    color: '#333',
+  },
+  meetingMeta: {
+    color: '#888',
+    fontSize: 13,
   },
 });

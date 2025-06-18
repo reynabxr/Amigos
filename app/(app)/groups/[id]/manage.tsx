@@ -311,7 +311,6 @@ export default function ManageGroupScreen() {
         keyboardShouldPersistTaps="handled"
       />
 
-      {/* icon selection modal */}
       <Modal
         animationType="slide"
         transparent={true}
