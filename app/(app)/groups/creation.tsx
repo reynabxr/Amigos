@@ -1,4 +1,5 @@
 import { FontAwesome5, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Stack, useNavigation, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -194,9 +195,19 @@ export default function GroupCreationScreen() {
     ), [groupName, selectedIcon, searchQuery, selectedMemberUids, allUsers, toggleMemberSelection]);
 
     const renderListFooter = useMemo(() => (
-      <TouchableOpacity style={styles.createButton} onPress={handleCreateGroup}>
-      <Text style={styles.createButtonText}>Create Group</Text>
-    </TouchableOpacity>
+        <TouchableOpacity
+          onPress={handleCreateGroup}
+          style={styles.createButtonTouchable}
+      >
+          <LinearGradient
+              colors={['#ea4080', '#FFC174']}
+              start={{ x: 0, y: 0.5 }}
+              end={{ x: 1, y: 0.5 }}
+              style={styles.gradient}
+          >
+            <Text style={styles.createButtonText}>CREATE</Text>
+          </LinearGradient>
+      </TouchableOpacity>
     ), [handleCreateGroup]);
 
     return (
@@ -207,7 +218,7 @@ export default function GroupCreationScreen() {
         <FlatList
         style={styles.flatListContainer}
         contentContainerStyle={styles.scrollContent}
-        data={filteredUsers}
+        data={filteredUsers.slice(0, 5)}
         keyExtractor={(item) => item.id}
         ListHeaderComponent={renderListHeader}
         ListFooterComponent={renderListFooter}
@@ -396,16 +407,23 @@ const styles = StyleSheet.create({
     color: '#888',
     fontStyle: 'italic',
   },
-  createButton: {
-    backgroundColor: '#E15A7C',
-    padding: 15,
-    borderRadius: 10,
-    alignItems: 'center',
+  createButtonTouchable: {
     marginTop: 20,
+    borderRadius: 25,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  gradient: {
+    paddingVertical: 15,
+    alignItems: 'center',
+    borderRadius: 25,
   },
   createButtonText: {
     color: 'white',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
   },
   modalOverlay: {

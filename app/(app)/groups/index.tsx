@@ -16,6 +16,12 @@ import {
 } from 'react-native';
 import { auth, db } from '../../../services/firebaseConfig';
 
+export interface AvailableIcon {
+  name: string;
+  set: IconSetType;
+  color: string;
+}
+
 export interface GroupData { 
   id: string;
   name: string;
@@ -31,19 +37,20 @@ export interface GroupData {
 
 export type IconSetType = typeof Ionicons | typeof MaterialCommunityIcons | typeof FontAwesome5;
 
-const iconSetMap = [
-  { name: 'people-outline', set: Ionicons },
-  { name: 'book-outline', set: Ionicons },
-  { name: 'desktop-outline', set: Ionicons },
-  { name: 'gamepad-variant-outline', set: MaterialCommunityIcons },
-  { name: 'handshake', set: FontAwesome5 },
-  { name: 'food-outline', set: MaterialCommunityIcons },
-  { name: 'compass-outline', set: Ionicons },
-  { name: 'star-outline', set: Ionicons },
+export const availableIcons: AvailableIcon[] = [
+  { name: 'people-outline', set: Ionicons, color: '#4A90E2' },
+  { name: 'book-outline', set: Ionicons, color: '#50E3C2' },
+  { name: 'desktop-outline', set: Ionicons, color: '#7B68EE' },
+  { name: 'family-restroom', set: MaterialCommunityIcons, color: '#FF6347' },
+  { name: 'gamepad-variant-outline', set: MaterialCommunityIcons, color: '#DA70D6' },
+  { name: 'handshake', set: FontAwesome5, color: '#3CB371' },
+  { name: 'food-outline', set: MaterialCommunityIcons, color: '#FFD700' },
+  { name: 'compass-outline', set: Ionicons, color: '#8A2BE2' },
+  { name: 'star-outline', set: Ionicons, color: '#FF8C00' },
 ];
 
-const getIconSetComponent = (iconName: string): IconSetType => {
-  const mapping = iconSetMap.find(item => item.name === iconName);
+export const getIconSetComponent = (iconName: string): IconSetType => {
+  const mapping = availableIcons.find(item => item.name === iconName);
   return mapping ? mapping.set : Ionicons;
 };
 

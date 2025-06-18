@@ -1,35 +1,26 @@
 import { FontAwesome5, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, SafeAreaView, ScrollView, StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 
 import { collection, doc, getDoc } from 'firebase/firestore';
-import { GroupData, IconSetType } from '.';
-import { db } from '../../../services/firebaseConfig';
-
-const iconSetMap = [
-  { name: 'people-outline', set: Ionicons },
-  { name: 'book-outline', set: Ionicons },
-  { name: 'desktop-outline', set: Ionicons },
-  { name: 'gamepad-variant-outline', set: MaterialCommunityIcons },
-  { name: 'handshake', set: FontAwesome5 },
-  { name: 'food-outline', set: MaterialCommunityIcons },
-  { name: 'compass-outline', set: Ionicons },
-  { name: 'star-outline', set: Ionicons },
-];
-
-const getIconSetComponent = (iconName: string): IconSetType => {
-  const mapping = iconSetMap.find(item => item.name === iconName);
-  return mapping ? mapping.set : Ionicons;
-};
+import { GroupData, IconSetType, availableIcons, getIconSetComponent } from '.';
+import { auth, db } from '../../../services/firebaseConfig';
 
 export default function GroupDetailsScreen() {
   const router = useRouter();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const params = useLocalSearchParams<{ id?: string }>();
+  const id = params.id;
   const [group, setGroup] = useState<GroupData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [memberDisplayNames, setMemberDisplayNames] = useState<{ [uid: string]: string }>({});
 
+  const handleManageGroupPress = useCallback(() => {
+    if (group?.id) {
+      router.push({ pathname: '/groups/[id]/manage', params: { id: group.id } });
+    }
+  }, [group, router]);
 
   const fetchMemberDisplayNames = useCallback(async (memberUids: string[]) => {
     const names: { [uid: string]: string } = {};
@@ -58,11 +49,11 @@ export default function GroupDetailsScreen() {
   }, []);
 
   useEffect(() => {
-    const fetchGroupDetails = async () => {
-      if (!id) {
+    if (!id) {
         setIsLoading(false);
         return;
-      }
+    }
+    const fetchGroupDetails = async () => {
       setIsLoading(true);
       try {
         const docRef = doc(db, 'groups', id);
@@ -116,7 +107,7 @@ export default function GroupDetailsScreen() {
       </SafeAreaView>
     );
   }
-
+  
   const ActualIconSet = group.iconType === 'vector' && group.iconName ? getIconSetComponent(group.iconName) : Ionicons;
 
   return (
@@ -152,6 +143,22 @@ export default function GroupDetailsScreen() {
             <Text style={styles.emptyMembersText}>No members in this group yet.</Text>
           )}
         </View>
+        {auth.currentUser?.uid && group.members.includes(auth.currentUser.uid) && (
+          <TouchableOpacity
+            style={styles.manageButtonTouchable}
+            onPress={handleManageGroupPress}
+            activeOpacity={0.8}
+          >
+            <LinearGradient
+              colors={['#ea4080', '#FFC174']}
+              start={{ x: 0, y: 0.5 }}
+              end={{ x: 1, y: 0.5 }}
+              style={styles.manageButtonGradient}
+            >
+              <Text style={styles.manageButtonText}>Manage Group</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -240,4 +247,25 @@ const styles = StyleSheet.create({
     color: '#888',
     fontStyle: 'italic',
   },
+  manageButtonTouchable: {
+  marginTop: 20,
+  borderRadius: 25,
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.15,
+  shadowRadius: 3,
+  elevation: 3,
+  width: '100%',
+},
+manageButtonGradient: {
+  paddingVertical: 15,
+  alignItems: 'center',
+  borderRadius: 25,
+  width: '100%',
+},
+manageButtonText: {
+  color: '#fff',
+  fontWeight: 'bold',
+  fontSize: 16,
+},
 });
