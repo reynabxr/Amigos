@@ -4,7 +4,7 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, SafeAreaView, ScrollView, StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 
-import { collection, doc, getDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
 import { GroupData, IconSetType, availableIcons, getIconSetComponent } from '.';
 import { auth, db } from '../../../services/firebaseConfig';
 
@@ -88,6 +88,19 @@ export default function GroupDetailsScreen() {
     };
     fetchGroupDetails();
   }, [id, fetchMemberDisplayNames, router]);
+  
+  const [meetings, setMeetings] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!id) return;
+    const fetchMeetings = async () => {
+      const meetingsRef = collection(db, 'groups', id, 'meetings');
+      const snapshot = await getDocs(meetingsRef);
+      const meetingsList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setMeetings(meetingsList);
+    };
+    fetchMeetings();
+  }, [id])
 
   if (isLoading) {
     return (
@@ -129,6 +142,17 @@ export default function GroupDetailsScreen() {
             )}
           </View>
           <Text style={styles.groupName}>{group.name}</Text>
+
+        {auth.currentUser?.uid && group.members.includes(auth.currentUser.uid) && (
+          <TouchableOpacity
+            style={styles.editButton}
+            onPress={handleManageGroupPress}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="create-outline" size={16} color="#fff" style={{ marginRight: 7 }} />
+            <Text style={styles.editButtonText}>Edit</Text>
+          </TouchableOpacity>
+        )}
         </View>
 
         <View style={styles.detailCard}>
@@ -143,22 +167,36 @@ export default function GroupDetailsScreen() {
             <Text style={styles.emptyMembersText}>No members in this group yet.</Text>
           )}
         </View>
-        {auth.currentUser?.uid && group.members.includes(auth.currentUser.uid) && (
-          <TouchableOpacity
-            style={styles.manageButtonTouchable}
-            onPress={handleManageGroupPress}
-            activeOpacity={0.8}
-          >
-            <LinearGradient
-              colors={['#ea4080', '#FFC174']}
-              start={{ x: 0, y: 0.5 }}
-              end={{ x: 1, y: 0.5 }}
-              style={styles.manageButtonGradient}
-            >
-              <Text style={styles.manageButtonText}>Manage Group</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        )}
+
+        <TouchableOpacity
+          style={styles.createMeetingButton}
+          onPress={() => router.push({ pathname: `/groups/[id]/create-meeting`, params: { id: group.id } })}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="calendar-outline" size={18} color="#fff" style={{ marginRight: 6 }} />
+          <Text style={styles.createMeetingButtonText}>Create New Meeting</Text>
+        </TouchableOpacity>
+
+        <View style={styles.detailCard}>
+          <Text style={styles.cardTitle}>Meetings</Text>
+          {meetings.length === 0 ? (
+            <Text style={styles.emptyMembersText}>No meetings yet.</Text>
+          ) : (
+            meetings.map(meeting => (
+              <TouchableOpacity
+                key={meeting.id}
+                style={styles.meetingItem}
+                onPress={() => router.push({ pathname: `/groups/[id]/meetings/[meetingId]`, params: { id: group.id, meetingId: meeting.id } })}
+              >
+                <Text style={styles.meetingName}>{meeting.name}</Text>
+                <Text style={styles.meetingMeta}>
+                  {new Date(meeting.date).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' })}, {' '}
+                  {new Date(meeting.date).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', hour12: true })} @ {meeting.location}
+                </Text>
+              </TouchableOpacity>
+            ))
+          )}
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -247,25 +285,49 @@ const styles = StyleSheet.create({
     color: '#888',
     fontStyle: 'italic',
   },
-  manageButtonTouchable: {
-  marginTop: 20,
-  borderRadius: 25,
-  shadowColor: '#000',
-  shadowOffset: { width: 0, height: 2 },
-  shadowOpacity: 0.15,
-  shadowRadius: 3,
-  elevation: 3,
-  width: '100%',
-},
-manageButtonGradient: {
-  paddingVertical: 15,
-  alignItems: 'center',
-  borderRadius: 25,
-  width: '100%',
-},
-manageButtonText: {
-  color: '#fff',
-  fontWeight: 'bold',
-  fontSize: 16,
-},
+  editButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'center',
+    backgroundColor: '#EA4080',
+    borderRadius: 16,
+    paddingVertical: 5,
+    paddingHorizontal: 14,
+    marginTop: 8,
+  },
+  editButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  createMeetingButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'center',
+    backgroundColor: '#4A90E2',
+    borderRadius: 16,
+    paddingVertical: 7,
+    paddingHorizontal: 18,
+    marginTop: 10,
+    marginBottom: 18,
+  },
+  createMeetingButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 15,
+  },
+  meetingItem: {
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  meetingName: {
+    fontWeight: 'bold',
+    fontSize: 16,
+    color: '#333',
+  },
+  meetingMeta: {
+    color: '#888',
+    fontSize: 13,
+  },
 });

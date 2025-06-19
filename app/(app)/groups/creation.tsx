@@ -13,7 +13,10 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 
 import { addDoc, collection, getDocs, orderBy, query } from 'firebase/firestore';
@@ -141,12 +144,22 @@ export default function GroupCreationScreen() {
     const renderListHeader = useMemo(() => (
       <>
         <Text style={styles.label}>Group Name:</Text>
+        <View style={{ position: 'relative' }}>
         <TextInput
           style={styles.input}
           placeholder="e.g. Lunch Buddies"
           value={groupName}
           onChangeText={setGroupName}
         />
+        {groupName !== '' && (
+            <TouchableOpacity
+              onPress={() => setGroupName('')}
+              style={styles.clearButton}
+            >
+              <Ionicons name="close-circle" size={20} color="#aaa" />
+            </TouchableOpacity>
+          )}
+        </View>
 
         <Text style={styles.label}>Group Icon:</Text>
         <TouchableOpacity style={styles.iconSelectionButton} onPress={() => setModalVisible(true)}>
@@ -162,35 +175,41 @@ export default function GroupCreationScreen() {
         </TouchableOpacity>
 
         <Text style={styles.label}>Invite Members:</Text>
-        <View style={styles.selectedMembersDisplay}>
-            {selectedMemberUids.length > 0 ? (
-                selectedMemberUids.map(uid => {
-                    const selectedUser = allUsers.find(u => u.id === uid);
-                    const displayName = selectedUser ? selectedUser.username : `User ${uid.substring(0, 4)}...`;
+        {selectedMemberUids.length > 0 && (
+          <View style={styles.selectedMembersDisplay}>
+            {selectedMemberUids.map(uid => {
+              const selectedUser = allUsers.find(u => u.id === uid);
+              const displayName = selectedUser ? selectedUser.username : `User ${uid.substring(0, 4)}...`;
 
-                    return (
-                        <View key={uid} style={styles.memberChip}>
-                            <Text style={styles.memberChipText}>{displayName}</Text>
-                            <TouchableOpacity onPress={() => toggleMemberSelection(selectedUser!)} style={styles.removeMemberButton}>
-                              <Ionicons name="close-circle" size={16} color="gray" />
-                            </TouchableOpacity>
-                        </View>
-                    );
-                })
-            ) : (
-                <Text style={styles.noMembersSelectedText}>
-                    No members invited yet.
-                </Text>
-            )}
-        </View>
+              return (
+                <View key={uid} style={styles.memberChip}>
+                  <Text style={styles.memberChipText}>{displayName}</Text>
+                  <TouchableOpacity onPress={() => toggleMemberSelection(selectedUser!)} style={styles.removeMemberButton}>
+                    <Ionicons name="close-circle" size={16} color="gray" />
+                  </TouchableOpacity>
+                </View>
+              );
+            })}
+          </View>
+        )}
         
         {/* search input for members */}
-        <TextInput
-          style={styles.input}
-          placeholder="Search your friends by their username..."
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
+        <View style={{ position: 'relative' }}>
+          <TextInput
+            style={styles.input}
+            placeholder="Search your friends by their username"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+          {searchQuery !== '' && (
+            <TouchableOpacity
+              onPress={() => setSearchQuery('')}
+              style={styles.clearButton}
+            >
+              <Ionicons name="close-circle" size={20} color="#aaa" />
+            </TouchableOpacity>
+          )}
+        </View>
       </>
     ), [groupName, selectedIcon, searchQuery, selectedMemberUids, allUsers, toggleMemberSelection]);
 
@@ -212,76 +231,89 @@ export default function GroupCreationScreen() {
 
     return (
       <SafeAreaView style={styles.container}>
-      <Stack.Screen options={{ title: 'Create New Group' }} />
+        <Stack.Screen options={{ title: 'Create New Group' }} />
+        <KeyboardAvoidingView
+          behavior={'padding'}
+          style={{ flex: 1 }}
+        >
 
-        {/* search results list */}
-        <FlatList
-        style={styles.flatListContainer}
-        contentContainerStyle={styles.scrollContent}
-        data={filteredUsers.slice(0, 5)}
-        keyExtractor={(item) => item.id}
-        ListHeaderComponent={renderListHeader}
-        ListFooterComponent={renderListFooter}
-        renderItem={({ item }) => (
-          <TouchableOpacity style={styles.searchUserItem} onPress={() => toggleMemberSelection(item)}>
-            <Text style={styles.searchUserItemText}>{item.username}</Text>
-            <Ionicons name="add-circle-outline" size={24} color="#007AFF" />
-          </TouchableOpacity>
-        )}
-        ItemSeparatorComponent={() => <View style={styles.separator} />}
-        ListEmptyComponent={() => (
-          <View style={styles.searchUserListContainer}>
-            {fetchingUsers ? (
-              <ActivityIndicator size="small" color="#007AFF" />
-            ) : searchQuery.length > 0 ? (
-              <Text style={styles.noSearchResultsText}>No Amigos found with that name.</Text>
-            ) : (
-              <Text style={styles.noSearchResultsText}>Start typing to search for Amigos.</Text>
+          {/* search results list */}
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+          >
+            {renderListHeader}
+
+            {(searchQuery.length > 0) && (
+              <View style={styles.searchUserListContainer}>
+                {fetchingUsers ? (
+                  <ActivityIndicator size="small" color="#007AFF" />
+                ) : filteredUsers.length === 0 ? (
+                  <Text style={styles.noSearchResultsText}>
+                    No Amigos found with that name.
+                  </Text>
+                ) : (
+                  filteredUsers.slice(0, 5).map((user, index) => (
+                    <View key={user.id}>
+                      <TouchableOpacity
+                        style={styles.searchUserItem}
+                        onPress={() => toggleMemberSelection(user)}
+                      >
+                        <Text style={styles.searchUserItemText}>{user.username}</Text>
+                        <Ionicons name="add-circle-outline" size={24} color="#007AFF" />
+                      </TouchableOpacity>
+                      {index < filteredUsers.length - 1 && (
+                        <View style={styles.separator} />
+                      )}
+                    </View>
+                  ))
+                )}
+              </View>
             )}
-          </View>
-        )}
-        keyboardShouldPersistTaps="handled"
-      />
 
-      {/* icon selection modal */}
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Select an Icon</Text>
-            <FlatList
-              data={availableIcons}
-              numColumns={4}
-              keyExtractor={(item, index) => `${item.name}-${index}`}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={[
-                    styles.iconOption,
-                    selectedIcon.name === item.name && styles.selectedIconOption,
-                  ]}
-                  onPress={() => {
-                    setSelectedIcon(item);
-                    setModalVisible(false);
-                  }}
-                >
-                  {React.createElement(item.set, {
-                    name: item.name,
-                    size: 35,
-                    color: item.color,
-                  })}
-                </TouchableOpacity>
-              )}
-            />
-            <Button title="Close" onPress={() => setModalVisible(false)} />
+            {renderListFooter}
+          </ScrollView>
+        </KeyboardAvoidingView>
+
+        {/* icon selection modal */}
+        <Modal
+          animationType="slide"
+          transparent={true}
+          visible={modalVisible}
+          onRequestClose={() => setModalVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Select an Icon</Text>
+              <FlatList
+                data={availableIcons}
+                numColumns={4}
+                keyExtractor={(item, index) => `${item.name}-${index}`}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={[
+                      styles.iconOption,
+                      selectedIcon.name === item.name && styles.selectedIconOption,
+                    ]}
+                    onPress={() => {
+                      setSelectedIcon(item);
+                      setModalVisible(false);
+                    }}
+                  >
+                    {React.createElement(item.set, {
+                      name: item.name,
+                      size: 35,
+                      color: item.color,
+                    })}
+                  </TouchableOpacity>
+                )}
+              />
+              <Button title="Close" onPress={() => setModalVisible(false)} />
+            </View>
           </View>
-        </View>
-      </Modal>
-    </SafeAreaView>
-  );
+        </Modal>
+      </SafeAreaView>
+    );
 }
 
 const styles = StyleSheet.create({
@@ -459,5 +491,12 @@ const styles = StyleSheet.create({
   selectedIconOption: {
     borderWidth: 2,
     borderColor: '#E15A7C',
+  },
+  clearButton: {
+    position: 'absolute',
+    right: 10,
+    top: '50%',
+    transform: [{ translateY: -18 }],
+    zIndex: 1,
   },
 });
