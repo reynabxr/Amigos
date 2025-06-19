@@ -14,6 +14,8 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  KeyboardAvoidingView,
+  ScrollView,
 } from 'react-native';
 
 import { collection, doc, getDoc, getDocs, orderBy, query, updateDoc } from 'firebase/firestore';
@@ -190,12 +192,22 @@ export default function ManageGroupScreen() {
     const renderListHeader = useMemo(() => (
     <>
       <Text style={styles.label}>Group Name:</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="e.g. Lunch Buddies"
-        value={groupName}
-        onChangeText={setGroupName}
-      />
+      <View style={{ position: 'relative' }}>
+        <TextInput
+          style={styles.input}
+          placeholder="e.g. Lunch Buddies"
+          value={groupName}
+          onChangeText={setGroupName}
+        />
+        {groupName !== '' && (
+            <TouchableOpacity
+              onPress={() => setGroupName('')}
+              style={styles.clearButton}
+            >
+              <Ionicons name="close-circle" size={20} color="#aaa" />
+            </TouchableOpacity>
+          )}
+        </View>
 
       <Text style={styles.label}>Group Icon:</Text>
       <TouchableOpacity style={styles.iconSelectionButton} onPress={() => setModalVisible(true)}>
@@ -232,12 +244,22 @@ export default function ManageGroupScreen() {
         )}
       </View>
 
-      <TextInput
-        style={styles.input}
-        placeholder="Search and add Amigos by username..."
-        value={searchQuery}
-        onChangeText={setSearchQuery}
-      />
+      <View style={{ position: 'relative' }}>
+        <TextInput
+          style={styles.input}
+          placeholder="Search your friends by their username"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
+        {searchQuery !== '' && (
+          <TouchableOpacity
+            onPress={() => setSearchQuery('')}
+            style={styles.clearButton}
+          >
+            <Ionicons name="close-circle" size={20} color="#aaa" />
+          </TouchableOpacity>
+        )}
+      </View>
     </>
   ), [
     groupName,
@@ -283,33 +305,39 @@ export default function ManageGroupScreen() {
     <SafeAreaView style={styles.container}>
       <Stack.Screen options={{ title: 'Manage Group' }} />
 
-      <FlatList
-        style={styles.flatListContainer}
-        contentContainerStyle={styles.scrollContent}
-        data={filteredUsers.slice(0, 5)}
-        keyExtractor={(item) => item.id}
-        ListHeaderComponent={renderListHeader}
-        ListFooterComponent={renderListFooter}
-        renderItem={({ item }) => (
-          <TouchableOpacity style={styles.searchUserItem} onPress={() => handleToggleMember(item, 'add')}>
-            <Text style={styles.searchUserItemText}>{item.username}</Text>
-            <Ionicons name="add-circle-outline" size={24} color="#007AFF" />
-          </TouchableOpacity>
-        )}
-        ItemSeparatorComponent={() => <View style={styles.separator} />}
-        ListEmptyComponent={() => (
-          <View style={styles.emptySearchContainer}>
-            {fetchingUsers ? (
-              <ActivityIndicator size="small" color="#007AFF" />
-            ) : searchQuery.length > 0 ? (
-              <Text style={styles.noSearchResultsText}>No Amigos found with that name.</Text>
-            ) : (
-              <Text style={styles.noSearchResultsText}>Start typing to search for Amigos.</Text>
-            )}
-          </View>
-        )}
-        keyboardShouldPersistTaps="handled"
-      />
+      <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
+        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+          {renderListHeader}
+
+          {(searchQuery.length > 0) && (
+            <View style={styles.emptySearchContainer}>
+              {fetchingUsers ? (
+                <ActivityIndicator size="small" color="#007AFF" />
+              ) : filteredUsers.length === 0 ? (
+                <Text style={styles.noSearchResultsText}>No Amigos found with that name.</Text>
+              ) : (
+                filteredUsers.slice(0, 5).map((user, index) => (
+                  <View key={user.id}>
+                    <TouchableOpacity
+                      style={styles.searchUserItem}
+                      onPress={() => handleToggleMember(user, 'add')}
+                    >
+                      <Text style={styles.searchUserItemText}>{user.username}</Text>
+                      <Ionicons name="add-circle-outline" size={24} color="#007AFF" />
+                    </TouchableOpacity>
+                    {index < filteredUsers.length - 1 && (
+                      <View style={styles.separator} />
+                    )}
+                  </View>
+                ))
+              )}
+            </View>
+          )}
+
+          {renderListFooter}
+        </ScrollView>
+      </KeyboardAvoidingView>
+
 
       <Modal
         animationType="slide"
@@ -535,5 +563,12 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontSize: 16,
     color: '#888',
+  },
+  clearButton: {
+    position: 'absolute',
+    right: 10,
+    top: '50%',
+    transform: [{ translateY: -18 }],
+    zIndex: 1,
   },
 });
