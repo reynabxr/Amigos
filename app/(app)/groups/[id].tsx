@@ -159,14 +159,18 @@ export default function GroupDetailsScreen() {
           <Text style={styles.cardTitle}>Members</Text>
           {group.members.length > 0 ? (
             group.members.map((memberUid, index) => (
-              <Text key={index} style={styles.memberText}>
-                <Ionicons name="person-circle-outline" size={16} color="#777" /> {memberDisplayNames[memberUid] || `User ${memberUid.substring(0, 4)}...`}
-              </Text>
+              <View key={index} style={styles.memberRow}>
+                <Ionicons name="person-circle-outline" size={20} color="#777" style={styles.memberIcon} />
+                <Text style={styles.memberText}>
+                  {memberDisplayNames[memberUid] || `User ${memberUid.substring(0, 4)}...`}
+                </Text>
+              </View>
             ))
           ) : (
             <Text style={styles.emptyMembersText}>No members in this group yet.</Text>
           )}
         </View>
+
 
         <TouchableOpacity
           style={styles.createMeetingButton}
@@ -188,7 +192,10 @@ export default function GroupDetailsScreen() {
                 style={styles.meetingItem}
                 onPress={() => router.push({ pathname: `/groups/[id]/meetings/[meetingId]`, params: { id: group.id, meetingId: meeting.id } })}
               >
-                <Text style={styles.meetingName}>{meeting.name}</Text>
+                <View style={styles.meetingRow}>
+                  <Ionicons name="time-outline" size={16} color="#777" style={{ marginRight: 6 }} />
+                  <Text style={styles.meetingName}>{meeting.name}</Text>
+                </View>
                 <Text style={styles.meetingMeta}>
                   {new Date(meeting.date).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' })}, {' '}
                   {new Date(meeting.date).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', hour12: true })} @ {meeting.location}
@@ -278,7 +285,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     fontSize: 16,
     color: '#555',
+  },
+  memberRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 5,
+  },
+
+  memberIcon: {
+    marginRight: 8,
   },
   emptyMembersText: {
     fontSize: 16,
@@ -330,4 +345,9 @@ const styles = StyleSheet.create({
     color: '#888',
     fontSize: 13,
   },
+  meetingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  }
 });
