@@ -93,7 +93,7 @@ export default function MeetingDetailsScreen() {
         <Text style={styles.value}>{creatorName}</Text>
 
         <TouchableOpacity
-          onPress={() => router.push({ pathname: `/groups/[id]/meetings/[meetingId]/edit`, params: { id: groupId, meetingId } })}
+          onPress={() => router.replace({ pathname: `/groups/[id]/meetings/[meetingId]/edit`, params: { id: groupId, meetingId } })}
           style={styles.editMeetingButtonTouchable}
         >
           <LinearGradient

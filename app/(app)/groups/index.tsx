@@ -41,7 +41,6 @@ export const availableIcons: AvailableIcon[] = [
   { name: 'people-outline', set: Ionicons, color: '#4A90E2' },
   { name: 'book-outline', set: Ionicons, color: '#50E3C2' },
   { name: 'desktop-outline', set: Ionicons, color: '#7B68EE' },
-  { name: 'family-restroom', set: MaterialCommunityIcons, color: '#FF6347' },
   { name: 'gamepad-variant-outline', set: MaterialCommunityIcons, color: '#DA70D6' },
   { name: 'handshake', set: FontAwesome5, color: '#3CB371' },
   { name: 'food-outline', set: MaterialCommunityIcons, color: '#FFD700' },
