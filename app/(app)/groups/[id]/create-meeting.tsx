@@ -14,7 +14,11 @@ import {
   TouchableOpacity,
   View,
   ScrollView,
-  FlatList
+  FlatList,
+  KeyboardAvoidingView,
+  Animated,
+  Easing,
+  Keyboard,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { addDoc, collection } from 'firebase/firestore';
@@ -77,53 +81,98 @@ export default function CreateMeetingScreen() {
   }) {
     const [query, setQuery] = useState('');
     const [results, setResults] = useState<any[]>([]);
+    const [fadeAnim] = useState(new Animated.Value(0));
+    const [heightAnim] = useState(new Animated.Value(0)); 
 
     const fetchSuggestions = async (text: string) => {
       setQuery(text);
-      if (text.length < 2) return;
-
-      try {
-        const response = await fetch(
-          `https://api.foursquare.com/v3/places/autocomplete?query=${encodeURIComponent(text)}&near=Singapore`,
-          {
-            headers: {
-              Authorization: process.env.FOURSQUARE_API_KEY ?? '',
-              Accept: 'application/json',
-            },
-          }
-        );
-        const json = await response.json();
-        setResults(json.results || []);
-      } catch (err) {
-        console.error('Foursquare API error', err);
+      if (text.length < 2) {
+        setResults([]);
+        fadeAnim.setValue(0);
+        heightAnim.setValue(0);
+        return;
       }
-    };
+
+      const options = {
+        method: 'GET',
+        headers: {
+          accept: 'application/json',
+          'X-Places-Api-Version': '2025-06-17',
+          authorization: 'Bearer 0IVYPELNY4LNMALBKREA520UP1HFILQNEAGKPLHLIRPJKOJ0'
+        }
+      };
+
+      const response = await fetch(`https://places-api.foursquare.com/places/search?query=${encodeURIComponent(text)}&near=Singapore&limit=5`, options);
+      const json = await response.json();
+      const fetchedResults = json.results || [];
+      setResults(json.results || []);
+      setResults(fetchedResults);
+      if (fetchedResults.length > 0) {
+        Animated.parallel([
+          Animated.timing(fadeAnim, {
+            toValue: 1,
+            duration: 200,
+            useNativeDriver: true,
+          }),
+          Animated.timing(heightAnim, {
+            toValue: 1,
+            duration: 200,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      }
+    }
 
     return (
       <View>
+        <View style={{ position: 'relative' }}>
         <TextInput
           style={styles.input}
           placeholder="e.g. Kent Ridge"
           value={query || location}
           onChangeText={fetchSuggestions}
+          onFocus={() => setShowDatePicker(false)}
         />
+        {(query || location) !== '' && (
+          <TouchableOpacity
+            onPress={() => {
+              setQuery('');
+              setLocation('');
+              setResults([]);
+            }}
+            style={styles.clearButton}
+          >
+            <Ionicons name="close-circle" size={20} color="#aaa" />
+          </TouchableOpacity>
+        )}
+      </View>
+
         {results.length > 0 && (
-          <FlatList
-            data={results}
-            keyExtractor={(item) => item.fsq_id}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={styles.resultItem}
-                onPress={() => {
-                  setLocation(item.text || item.name);
-                  setQuery(item.text || item.name);
-                  setResults([]);
-                }}
-              >
-                <Text>{item.text || item.name}</Text>
-              </TouchableOpacity>
-            )}
-          />
+          <Animated.View
+            style={{
+              opacity: fadeAnim,
+              backgroundColor: '#fff',
+              borderRadius: 8,
+              borderColor: '#ddd',
+              borderWidth: 1,
+              marginTop: -10,
+              marginBottom: 10,
+            }}
+          >
+          {results.map((item, index) => (
+            <TouchableOpacity
+              key={item.fsq_place_id || index}
+              style={styles.resultItem}
+              onPress={() => {
+                setLocation(item.name);
+                setQuery(item.name);
+                setResults([]);
+              }}
+            >
+              <Text>{item.name}</Text>
+            </TouchableOpacity>
+          ))}
+          </Animated.View>
         )}
       </View>
     );
@@ -131,104 +180,119 @@ export default function CreateMeetingScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={'padding'}>
       <Stack.Screen options={{ title: 'Create Meeting' }} />
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={{ padding: 20, paddingBottom: 100 }}
-        keyboardShouldPersistTaps="handled"
-      >
-        <Text style={styles.label}>Meeting Name</Text>
-        <TextInput
-          style={styles.input}
-          value={meetingName}
-          onChangeText={setMeetingName}
-          placeholder="e.g. Lunch Catch-up"
-        />
-
-        <Text style={styles.label}>Date & Time</Text>
-        <TouchableOpacity
-          style={styles.dateButton}
-          onPress={() => setShowDatePicker(!showDatePicker)}
+        <ScrollView
+          contentContainerStyle={{ padding: 20, paddingBottom: 100 }}
+          keyboardShouldPersistTaps="handled"
         >
-          <Ionicons name="calendar-outline" size={18} color="#4A90E2" />
-          <Text style={styles.dateButtonText}>
-            {date.toLocaleString(undefined, {
-              year: 'numeric',
-              month: 'short',
-              day: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit',
-              hour12: true,
-            })}
-          </Text>
-        </TouchableOpacity>
-        {showDatePicker && (
-          <>
-            <Text style={{ fontWeight: 'bold', marginTop: 10 }}>Pick a Date</Text>
-            <DateTimePicker
-              value={date}
-              mode="date"
-              display="inline"
-              onChange={(event, selectedDate) => {
-                if (selectedDate) {
-                  const updated = new Date(date);
-                  updated.setFullYear(
-                    selectedDate.getFullYear(),
-                    selectedDate.getMonth(),
-                    selectedDate.getDate()
-                  );
-                  setDate(updated);
-                }
-              }}
-              minimumDate={new Date()}
+          <Text style={styles.label}>Meeting Name</Text>
+          <View style={{ position: 'relative' }}>
+            <TextInput
+              style={styles.input}
+              value={meetingName}
+              onChangeText={setMeetingName}
+              placeholder="e.g. Lunch Catch-up"
+              onFocus={() => setShowDatePicker(false)}
             />
+            {meetingName !== '' && (
+              <TouchableOpacity
+                onPress={() => setMeetingName('')}
+                style={styles.clearButton}
+              >
+                <Ionicons name="close-circle" size={20} color="#aaa" />
+              </TouchableOpacity>
+            )}
+          </View>
 
-            <Text style={{ fontWeight: 'bold', marginTop: 10 }}>Pick a Time</Text>
+          <Text style={styles.label}>Date & Time</Text>
+          <TouchableOpacity
+            style={styles.dateButton}
+            onPress={() => {
+              Keyboard.dismiss();
+              setShowDatePicker(!showDatePicker);
+            }}
+          >
+            <Ionicons name="calendar-outline" size={18} color="#4A90E2" />
+            <Text style={styles.dateButtonText}>
+              {date.toLocaleString(undefined, {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true,
+              })}
+            </Text>
+          </TouchableOpacity>
+          {showDatePicker && (
+            <>
+              <Text style={{ fontWeight: 'bold', marginTop: 10 }}>Pick a Date</Text>
               <DateTimePicker
                 value={date}
-                mode="time"
-                display="spinner"
-                onChange={(event, selectedTime) => {
-                  if (selectedTime) {
+                mode="date"
+                display="inline"
+                onChange={(event, selectedDate) => {
+                  if (selectedDate) {
                     const updated = new Date(date);
-                    updated.setHours(
-                      selectedTime.getHours(),
-                      selectedTime.getMinutes()
+                    updated.setFullYear(
+                      selectedDate.getFullYear(),
+                      selectedDate.getMonth(),
+                      selectedDate.getDate()
                     );
                     setDate(updated);
                   }
                 }}
-                minimumDate={minimumTime}
+                minimumDate={new Date()}
               />
 
-              <TouchableOpacity onPress={() => setShowDatePicker(false)} style={styles.doneButton}>
-                <Text style={styles.doneButtonText}>Done</Text>
-              </TouchableOpacity>
-            </>
-        )}
+              <Text style={{ fontWeight: 'bold', marginTop: 10 }}>Pick a Time</Text>
+                <DateTimePicker
+                  value={date}
+                  mode="time"
+                  display="spinner"
+                  onChange={(event, selectedTime) => {
+                    if (selectedTime) {
+                      const updated = new Date(date);
+                      updated.setHours(
+                        selectedTime.getHours(),
+                        selectedTime.getMinutes()
+                      );
+                      setDate(updated);
+                    }
+                  }}
+                  minimumDate={minimumTime}
+                />
 
-        <Text style={styles.label}>Location</Text>
-        <LocationInput location={location} setLocation={setLocation} />
+                <TouchableOpacity onPress={() => setShowDatePicker(false)} style={styles.doneButton}>
+                  <Text style={styles.doneButtonText}>Done</Text>
+                </TouchableOpacity>
+              </>
+          )}
 
-        <TouchableOpacity
-          style={styles.saveButtonTouchable}
-          onPress={handleCreateMeeting}
-          disabled={isSaving}
-        >
-          <LinearGradient
-            colors={isSaving ? ['#ccc', '#aaa'] : ['#ea4080', '#FFC174']}
-            start={{ x: 0, y: 0.5 }}
-            end={{ x: 1, y: 0.5 }}
-            style={styles.gradient}
+          <Text style={styles.label}>Location</Text>
+          <LocationInput location={location} setLocation={setLocation} />
+
+          <TouchableOpacity
+            style={styles.saveButtonTouchable}
+            onPress={handleCreateMeeting}
+            disabled={isSaving}
           >
-            {isSaving ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.saveButtonText}>CREATE</Text>
-            )}
-          </LinearGradient>
-        </TouchableOpacity>
-      </ScrollView>
+            <LinearGradient
+              colors={isSaving ? ['#ccc', '#aaa'] : ['#ea4080', '#FFC174']}
+              start={{ x: 0, y: 0.5 }}
+              end={{ x: 1, y: 0.5 }}
+              style={styles.gradient}
+            >
+              {isSaving ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.saveButtonText}>CREATE</Text>
+              )}
+            </LinearGradient>
+          </TouchableOpacity>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -276,6 +340,13 @@ const styles = StyleSheet.create({
     borderBottomColor: '#ddd',
     borderBottomWidth: 1,
     backgroundColor: '#f9f9f9',
+  },
+  clearButton: {
+    position: 'absolute',
+    right: 10,
+    top: '50%',
+    transform: [{ translateY: -18 }],
+    zIndex: 1,
   },
   saveButtonTouchable: {
     marginTop: 20,
