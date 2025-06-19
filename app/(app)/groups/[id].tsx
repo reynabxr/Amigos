@@ -190,7 +190,8 @@ export default function GroupDetailsScreen() {
               >
                 <Text style={styles.meetingName}>{meeting.name}</Text>
                 <Text style={styles.meetingMeta}>
-                  {new Date(meeting.date).toLocaleString()} @ {meeting.location}
+                  {new Date(meeting.date).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' })}, {' '}
+                  {new Date(meeting.date).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', hour12: true })} @ {meeting.location}
                 </Text>
               </TouchableOpacity>
             ))
@@ -293,7 +294,6 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     paddingHorizontal: 14,
     marginTop: 8,
-    marginBottom: 16,
   },
   editButtonText: {
     color: '#fff',
@@ -304,10 +304,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'center',
-    backgroundColor: '#4A90E2', // Use a blue accent for meetings
+    backgroundColor: '#4A90E2',
     borderRadius: 16,
     paddingVertical: 7,
     paddingHorizontal: 18,
+    marginTop: 10,
     marginBottom: 18,
   },
   createMeetingButtonText: {
