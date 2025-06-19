@@ -100,7 +100,7 @@ export default function EditMeetingScreen() {
         date: date.getTime(),
       });
       Alert.alert('Success', 'Meeting updated!');
-      router.replace(`/groups/${groupId}/meetings/${meetingId}`);
+      router.back();
     } catch (error) {
       Alert.alert('Error', 'Failed to update meeting.');
       console.error(error);
