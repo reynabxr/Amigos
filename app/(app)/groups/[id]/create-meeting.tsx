@@ -13,6 +13,8 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  ScrollView,
+  FlatList
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { addDoc, collection } from 'firebase/firestore';
@@ -58,10 +60,83 @@ export default function CreateMeetingScreen() {
     setIsSaving(false);
   };
 
+  const now = new Date();
+  const isToday =
+    date.getFullYear() === now.getFullYear() &&
+    date.getMonth() === now.getMonth() &&
+    date.getDate() === now.getDate();
+
+  const minimumTime = isToday ? now : undefined;
+
+  function LocationInput({
+    location,
+    setLocation,
+  }: {
+    location: string;
+    setLocation: (val: string) => void;
+  }) {
+    const [query, setQuery] = useState('');
+    const [results, setResults] = useState<any[]>([]);
+
+    const fetchSuggestions = async (text: string) => {
+      setQuery(text);
+      if (text.length < 2) return;
+
+      try {
+        const response = await fetch(
+          `https://api.foursquare.com/v3/places/autocomplete?query=${encodeURIComponent(text)}&near=Singapore`,
+          {
+            headers: {
+              Authorization: process.env.FOURSQUARE_API_KEY ?? '',
+              Accept: 'application/json',
+            },
+          }
+        );
+        const json = await response.json();
+        setResults(json.results || []);
+      } catch (err) {
+        console.error('Foursquare API error', err);
+      }
+    };
+
+    return (
+      <View>
+        <TextInput
+          style={styles.input}
+          placeholder="e.g. Kent Ridge"
+          value={query || location}
+          onChangeText={fetchSuggestions}
+        />
+        {results.length > 0 && (
+          <FlatList
+            data={results}
+            keyExtractor={(item) => item.fsq_id}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={styles.resultItem}
+                onPress={() => {
+                  setLocation(item.text || item.name);
+                  setQuery(item.text || item.name);
+                  setResults([]);
+                }}
+              >
+                <Text>{item.text || item.name}</Text>
+              </TouchableOpacity>
+            )}
+          />
+        )}
+      </View>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <Stack.Screen options={{ title: 'Create Meeting' }} />
-      <View style={styles.container}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: 20, paddingBottom: 100 }}
+        keyboardShouldPersistTaps="handled"
+      >
         <Text style={styles.label}>Meeting Name</Text>
         <TextInput
           style={styles.input}
@@ -73,29 +148,67 @@ export default function CreateMeetingScreen() {
         <Text style={styles.label}>Date & Time</Text>
         <TouchableOpacity
           style={styles.dateButton}
-          onPress={() => setShowDatePicker(true)}
+          onPress={() => setShowDatePicker(!showDatePicker)}
         >
           <Ionicons name="calendar-outline" size={18} color="#4A90E2" />
           <Text style={styles.dateButtonText}>
-            {date.toLocaleString()}
+            {date.toLocaleString(undefined, {
+              year: 'numeric',
+              month: 'short',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: true,
+            })}
           </Text>
         </TouchableOpacity>
         {showDatePicker && (
-          <DateTimePicker
-            value={date}
-            mode="datetime"
-            display={'inline'}
-            onChange={handleDateChange}
-          />
+          <>
+            <Text style={{ fontWeight: 'bold', marginTop: 10 }}>Pick a Date</Text>
+            <DateTimePicker
+              value={date}
+              mode="date"
+              display="inline"
+              onChange={(event, selectedDate) => {
+                if (selectedDate) {
+                  const updated = new Date(date);
+                  updated.setFullYear(
+                    selectedDate.getFullYear(),
+                    selectedDate.getMonth(),
+                    selectedDate.getDate()
+                  );
+                  setDate(updated);
+                }
+              }}
+              minimumDate={new Date()}
+            />
+
+            <Text style={{ fontWeight: 'bold', marginTop: 10 }}>Pick a Time</Text>
+              <DateTimePicker
+                value={date}
+                mode="time"
+                display="spinner"
+                onChange={(event, selectedTime) => {
+                  if (selectedTime) {
+                    const updated = new Date(date);
+                    updated.setHours(
+                      selectedTime.getHours(),
+                      selectedTime.getMinutes()
+                    );
+                    setDate(updated);
+                  }
+                }}
+                minimumDate={minimumTime}
+              />
+
+              <TouchableOpacity onPress={() => setShowDatePicker(false)} style={styles.doneButton}>
+                <Text style={styles.doneButtonText}>Done</Text>
+              </TouchableOpacity>
+            </>
         )}
 
         <Text style={styles.label}>Location</Text>
-        <TextInput
-          style={styles.input}
-          value={location}
-          onChangeText={setLocation}
-          placeholder="e.g. Kent Ridge"
-        />
+        <LocationInput location={location} setLocation={setLocation} />
 
         <TouchableOpacity
           style={styles.saveButtonTouchable}
@@ -115,7 +228,7 @@ export default function CreateMeetingScreen() {
             )}
           </LinearGradient>
         </TouchableOpacity>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -145,6 +258,24 @@ const styles = StyleSheet.create({
     marginLeft: 10,
     fontSize: 16,
     color: '#4A90E2',
+  },
+  doneButton: {
+    alignSelf: 'flex-end',
+    backgroundColor: '#EA4080',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginTop: 10,
+  },
+  doneButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+  },
+  resultItem: {
+    padding: 10,
+    borderBottomColor: '#ddd',
+    borderBottomWidth: 1,
+    backgroundColor: '#f9f9f9',
   },
   saveButtonTouchable: {
     marginTop: 20,
