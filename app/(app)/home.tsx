@@ -85,6 +85,7 @@ export default function HomeScreen() {
           const groupMeetings = meetingsSnapshot.docs.map(doc => ({
             id: doc.id,
             groupId,
+            groupName: groupDoc.data().name,
             ...doc.data(),
             date: doc.data().date?.toDate ? doc.data().date.toDate() : new Date(doc.data().date),
           }))
@@ -92,7 +93,7 @@ export default function HomeScreen() {
 
           setMeetings(prevMeetings => {
             const filtered = prevMeetings.filter(m => m.groupId !== groupId);
-            return [...filtered, ...groupMeetings].sort((a, b) => a.date - b.date);
+            return [...filtered, ...groupMeetings].sort((a, b) => a.date - b.date).slice(0, 3);
           });
 
           setLoadingMeetings(false);
@@ -130,6 +131,7 @@ export default function HomeScreen() {
     >
       <View style={styles.meetingDetails}>
         <Text style={styles.meetingTitle}>{item.name}</Text>
+        <Text style={styles.meetingGroupName}>{item.groupName}</Text>
         <Text style={styles.meetingTimeLocation}>
           {formatDateTime(item.date)} • {item.location}
         </Text>
@@ -151,7 +153,9 @@ export default function HomeScreen() {
           ) : (
             <Text style={styles.emptyText}>No upcoming meetings.</Text>
           )}
-          <TouchableOpacity style={styles.seeAllButton}>
+          <TouchableOpacity 
+            style={styles.seeAllButton} 
+            onPress={() => router.push('/see-all-meetings')}>
             <Text style={styles.seeAllText}>See All Meetings</Text>
           </TouchableOpacity>
         </SectionCard>
@@ -211,6 +215,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#444',
+  },
+  meetingGroupName: {
+    fontSize: 13,
+    color: '#EA4080',
+    fontWeight: 'bold',
+    marginTop: 2,
   },
   meetingTimeLocation: {
     fontSize: 14,

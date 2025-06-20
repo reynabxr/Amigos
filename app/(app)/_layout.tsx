@@ -95,6 +95,13 @@ export default function AppTabLayout() {
           headerShown: false,
         }}
       />
+      <Tabs.Screen
+        name="see-all-meetings"
+        options={{
+          href: null,
+          headerShown: true,
+        }}
+      />
     </Tabs>
   );
 }
