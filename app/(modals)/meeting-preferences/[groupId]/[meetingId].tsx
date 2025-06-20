@@ -1,16 +1,16 @@
-import React, { useEffect, useState } from 'react';
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { SafeAreaView, View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from 'react-native';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { auth, db } from '../../../../../../services/firebaseConfig';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { auth, db } from '../../../../services/firebaseConfig';
 
 const CUISINE_OPTIONS = ['Chinese', 'Western', 'Indian', 'Malay', 'Korean', 'Japanese', 'Thai', 'Vietnamese', 'Mediterranean'];
 const BUDGET_OPTIONS = ['< $15', '$15 - $30', '$30 - $50', '> $50'];
 
 export default function PreferencesScreen() {
   const router = useRouter();
-  const { id: groupId, meetingId } = useLocalSearchParams<{ id: string; meetingId: string; }>();
+  const {groupId, meetingId} = useLocalSearchParams<{ groupId: string; meetingId: string;}>();
 
   const [selectedCuisines, setSelectedCuisines] = useState<string[]>([]);
   const [selectedBudget, setSelectedBudget] = useState<string>('');
@@ -49,7 +49,7 @@ export default function PreferencesScreen() {
         budget: selectedBudget,
         });
         Alert.alert('Saved!', 'Your preferences have been recorded.');
-        router.back();
+        router.back()
     } catch (e) {
         Alert.alert('Error', 'Failed to save preferences.');
     } finally {
@@ -66,12 +66,7 @@ export default function PreferencesScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Stack.Screen
-        options={{
-        title: 'Set Preferences',
-        headerBackTitle: 'Back',
-        headerShown: true,
-        }}
+      <Stack.Screen options={{title: 'Set Preferences'}}
         />
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <Text style={styles.sectionTitle}>Cuisine Preference</Text>
@@ -81,7 +76,7 @@ export default function PreferencesScreen() {
                 styles.chip,
                 selectedCuisines.length === 0 && styles.chipSelected,
                 ]}
-                onPress={() => setSelectedCuisines([])} // Clear all
+                onPress={() => setSelectedCuisines([])}
             >
                 <Text style={[
                     styles.chipText,

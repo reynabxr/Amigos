@@ -1,14 +1,20 @@
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, SafeAreaView, StyleSheet, Text, View, TouchableOpacity, } from 'react-native';
+import { Stack, useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
+import React, { useEffect, useState, useCallback } from 'react';
+import { ActivityIndicator, SafeAreaView, StyleSheet, Text, View, TouchableOpacity, BackHandler } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
-import { db } from '../../../../../services/firebaseConfig';
+import { collection, doc, getDoc, getDocs, onSnapshot } from 'firebase/firestore';
+import { db } from '../../../../services/firebaseConfig';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function MeetingDetailsScreen() {
-  const { id: groupId, meetingId } = useLocalSearchParams<{ id: string; meetingId: string }>();
+  const { groupId, meetingId, from } = useLocalSearchParams<{
+    groupId: string;
+    meetingId: string;
+    from?: string;
+  }>();
   const router = useRouter();
+  const navigation = useNavigation();
   const [meeting, setMeeting] = useState<any>(null);
   const [creatorName, setCreatorName] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
@@ -27,14 +33,55 @@ export default function MeetingDetailsScreen() {
     return `${dateStr}, ${timeStr}`;
   };
 
+  useFocusEffect(
+    useCallback(() => {
+      const beforeRemove = navigation.addListener('beforeRemove', (e) => {
+        e.preventDefault();
+        router.replace('/home');
+      });
+
+      return () => {
+        beforeRemove(); 
+      };
+    }, [router, navigation])
+  );
+
   useEffect(() => {
     if (!groupId || !meetingId) return;
 
-    const fetchUsernames = async (uids: string[]) => {
-      const names: { [uid: string]: string } = {};
-      try {
+    setIsLoading(true);
+
+    const meetingDocRef = doc(db, 'groups', groupId, 'meetings', meetingId);
+    const unsubscribe = onSnapshot(meetingDocRef, async (meetingSnap) => {
+      if (!meetingSnap.exists()) {
+        setMeeting(null);
+        setIsLoading(false);
+        return;
+      }
+      const meetingData = meetingSnap.data();
+      setMeeting(meetingData);
+
+      if (meetingData.createdBy) {
+        const userDocRef = doc(db, 'users', meetingData.createdBy);
+        const userSnap = await getDoc(userDocRef);
+        if (userSnap.exists()) {
+          const userData = userSnap.data();
+          setCreatorName(userData.username || userData.email || 'Unknown User');
+        } else {
+          setCreatorName('Unknown User');
+        }
+      }
+
+      const groupDocRef = doc(db, 'groups', groupId);
+      const groupSnap = await getDoc(groupDocRef);
+      if (groupSnap.exists()) {
+        const groupData = groupSnap.data();
+        const members = groupData.members || [];
+        setGroupMembers(members);
+
+        const names: { [uid: string]: string } = {};
         const userDocs = await Promise.all(
-          uids.map(uid => getDoc(doc(db, 'users', uid)))
+          members.map((uid: string) => getDoc(doc(db, 'users', uid)))
         );
         userDocs.forEach(docSnap => {
           if (docSnap.exists()) {
@@ -44,63 +91,21 @@ export default function MeetingDetailsScreen() {
             names[docSnap.id] = `Unknown User (${docSnap.id.substring(0, 4)}...)`;
           }
         });
-      } catch (error) {
-        console.error('Error fetching usernames:', error);
+        setMemberNames(names);
       }
-      return names;
-    };
 
-    const fetchData = async () => {
-      setIsLoading(true);
-      try {
-        const meetingDocRef = doc(db, 'groups', groupId, 'meetings', meetingId);
-        const meetingSnap = await getDoc(meetingDocRef);
-        if (!meetingSnap.exists()) {
-          setMeeting(null);
-          setIsLoading(false);
-          return;
-        }
-        const meetingData = meetingSnap.data();
-        setMeeting(meetingData);
+      const prefsRef = collection(db, 'groups', groupId, 'meetings', meetingId, 'preferences');
+      const prefsSnapshot = await getDocs(prefsRef);
+      const submittedSet = new Set<string>();
+      prefsSnapshot.docs.forEach(doc => {
+        submittedSet.add(doc.id);
+      });
+      setPreferencesSubmitted(submittedSet);
 
-        if (meetingData.createdBy) {
-          const userDocRef = doc(db, 'users', meetingData.createdBy);
-          const userSnap = await getDoc(userDocRef);
-          if (userSnap.exists()) {
-            const userData = userSnap.data();
-            setCreatorName(userData.username || userData.email || 'Unknown User');
-          } else {
-            setCreatorName('Unknown User');
-          }
-        }
-        const groupDocRef = doc(db, 'groups', groupId);
-        const groupSnap = await getDoc(groupDocRef);
-        if (groupSnap.exists()) {
-          const groupData = groupSnap.data();
-          const members = groupData.members || [];
-          setGroupMembers(members);
+      setIsLoading(false);
+    });
 
-          const fetchedNames = await fetchUsernames(members);
-          setMemberNames(fetchedNames);
-        }
-
-        const prefsRef = collection(db, 'groups', groupId, 'meetings', meetingId, 'preferences');
-        const prefsSnapshot = await getDocs(prefsRef);
-        const submittedSet = new Set<string>();
-        prefsSnapshot.docs.forEach(doc => {
-          console.log('Fetched preference doc ID:', doc.id);
-          submittedSet.add(doc.id);
-        });
-        setPreferencesSubmitted(submittedSet);
-
-      } catch (error) {
-        console.error('Error fetching meeting or user:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchData();
+    return () => unsubscribe();
   }, [groupId, meetingId]);
 
   if (isLoading) {
@@ -121,11 +126,35 @@ export default function MeetingDetailsScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <Stack.Screen options={{ title: meeting.name }} />
+      <Stack.Screen
+            options={{
+                title: meeting.name,
+                headerLeft: () => (
+                <TouchableOpacity
+                    onPress={() => {
+                    if (from === 'home') {
+                        router.replace('/home');
+                    } else if (from === 'group') {
+                        router.replace({
+                        pathname: '/groups/[id]',
+                        params: { id: groupId },
+                        });
+                    } else {
+                        router.back();
+                    }
+                    }}
+                    style={{ marginLeft: 10 }}
+                >
+                    <Ionicons name="arrow-back" size={24} color="#EA4080" />
+                </TouchableOpacity>
+                ),
+            }}
+        />
 
       <TouchableOpacity
         onPress={() =>
-          router.push({ pathname: `/groups/[id]/meetings/[meetingId]/edit`, params: { id: groupId, meetingId } })
+          router.push({ pathname: "/meeting-edit/[groupId]/[meetingId]", params: { groupId, meetingId } })
+          
         }
         style={styles.editMeetingButtonTouchable}
       >
@@ -165,10 +194,7 @@ export default function MeetingDetailsScreen() {
         <TouchableOpacity
           style={styles.preferenceButton}
           onPress={() =>
-            router.push({
-              pathname: `/groups/[id]/meetings/[meetingId]/preferences`,
-              params: { id: groupId, meetingId },
-            })
+            router.push({ pathname: "/meeting-preferences/[groupId]/[meetingId]", params: { groupId, meetingId, from } })
           }
           activeOpacity={0.7}
         >
