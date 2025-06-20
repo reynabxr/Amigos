@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons'; // For example icons
-import React from 'react';
+import React, { useEffect, useState, } from 'react';
 import {
   Image,
   SafeAreaView,
@@ -9,13 +9,11 @@ import {
   Text,
   TouchableOpacity,
   View,
+  ActivityIndicator,
 } from 'react-native';
-
-// Sample Data (replace with your actual data fetching)
-const upcomingMeetingsData = [
-  { id: '1', title: 'Tan Family', time: 'Tomorrow, 11:00 AM', location: 'The Brew Spot', attendees: ['Alex', 'You'] },
-  { id: '2', title: 'Study Group', time: 'Friday, 6:00 PM', location: 'Yakiniku Like (Clementi Mall)', attendees: ['Sarah', 'Mike', 'You'] },
-];
+import { collection, getDocs, query, orderBy, where, onSnapshot } from 'firebase/firestore';
+import { db, auth } from '../../services/firebaseConfig';
+import { Link, useRouter } from 'expo-router';
 
 const placesEatenData = [
   { id: '1', name: 'Pizza Hut', lastVisited: 'Last week', rating: 4, image: 'https://via.placeholder.com/100x80.png?text=Pizza' },
@@ -28,17 +26,6 @@ const SectionCard = ({ title, children }: { title: string, children: React.React
     <Text style={styles.sectionTitle}>{title}</Text>
     {children}
   </View>
-);
-
-const MeetingItem = ({ item }: { item: typeof upcomingMeetingsData[0] }) => (
-  <TouchableOpacity style={styles.meetingItem}>
-    <View style={styles.meetingDetails}>
-      <Text style={styles.meetingTitle}>{item.title}</Text>
-      <Text style={styles.meetingTimeLocation}>{item.time} - {item.location}</Text>
-      <Text style={styles.meetingAttendees}>Attendees: {item.attendees.join(', ')}</Text>
-    </View>
-    <Ionicons name="chevron-forward" size={24} color="#ccc" />
-  </TouchableOpacity>
 );
 
 const PlaceItem = ({ item }: { item: typeof placesEatenData[0] }) => (
@@ -55,14 +42,115 @@ const PlaceItem = ({ item }: { item: typeof placesEatenData[0] }) => (
 
 
 export default function HomeScreen() {
+  const [meetings, setMeetings] = useState<any[]>([]);
+  const [loadingMeetings, setLoadingMeetings] = useState(true);
+  const router = useRouter();
+
+  useEffect(() => {
+    let groupUnsubscribe: (() => void) | null = null;
+    let meetingsUnsubscribes: (() => void)[] = [];
+
+    const user = auth.currentUser;
+    if (!user) {
+      setMeetings([]);
+      setLoadingMeetings(false);
+      return;
+    }
+
+    setLoadingMeetings(true);
+
+    // 1. Listen to groups
+    const groupsRef = collection(db, 'groups');
+    const groupsQuery = query(groupsRef, where('members', 'array-contains', user.uid));
+    groupUnsubscribe = onSnapshot(groupsQuery, (groupsSnapshot) => {
+      // Clean up previous meetings listeners
+      meetingsUnsubscribes.forEach(unsub => unsub());
+      meetingsUnsubscribes = [];
+
+      if (groupsSnapshot.empty) {
+        setMeetings([]);
+        setLoadingMeetings(false);
+        return;
+      }
+
+      const allMeetings: any[] = [];
+      let groupsProcessed = 0;
+
+      groupsSnapshot.forEach(groupDoc => {
+        const groupId = groupDoc.id;
+        const meetingsRef = collection(db, 'groups', groupId, 'meetings');
+        const meetingsQuery = query(meetingsRef, orderBy('date', 'desc'));
+
+        // 2. Listen to each group's meetings
+        const meetingsUnsub = onSnapshot(meetingsQuery, (meetingsSnapshot) => {
+          const groupMeetings = meetingsSnapshot.docs.map(doc => ({
+            id: doc.id,
+            groupId,
+            ...doc.data(),
+            date: doc.data().date?.toDate ? doc.data().date.toDate() : new Date(doc.data().date),
+          }));
+
+          // Remove old meetings for this group and add new ones
+          setMeetings(prevMeetings => {
+            // Remove old meetings for this group
+            const filtered = prevMeetings.filter(m => m.groupId !== groupId);
+            // Add new ones
+            return [...filtered, ...groupMeetings].sort((a, b) => a.date - b.date);
+          });
+
+          setLoadingMeetings(false);
+        });
+
+        meetingsUnsubscribes.push(meetingsUnsub);
+        groupsProcessed++;
+      });
+
+      if (groupsProcessed === 0) {
+        setMeetings([]);
+        setLoadingMeetings(false);
+      }
+    });
+
+    return () => {
+      if (groupUnsubscribe) groupUnsubscribe();
+      meetingsUnsubscribes.forEach(unsub => unsub());
+    };
+  }, []);
+
+  const formatDateTime = (ts: number) => {
+    const d = new Date(ts);
+    return `${d.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' })}  ${d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', hour12: true })}`;
+  };
+
+  const MeetingItem = ({ item }: any) => (
+    <TouchableOpacity style={styles.meetingItem}
+      onPress={() =>
+          router.push({
+            pathname: '/meeting-details/[groupId]/[meetingId]',
+            params: { groupId: item.groupId, meetingId: item.id, from: 'home'},
+          })
+      }
+    >
+      <View style={styles.meetingDetails}>
+        <Text style={styles.meetingTitle}>{item.name}</Text>
+        <Text style={styles.meetingTimeLocation}>
+          {formatDateTime(item.date)} • {item.location}
+        </Text>
+      </View>
+      <Ionicons name="chevron-forward" size={24} color="#ccc" />
+    </TouchableOpacity>
+  );
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" />
       <ScrollView contentContainerStyle={styles.container}>
         {/* Upcoming Meetings Section */}
         <SectionCard title="Upcoming Meetings">
-          {upcomingMeetingsData.length > 0 ? (
-            upcomingMeetingsData.map(item => <MeetingItem key={item.id} item={item} />)
+          {loadingMeetings ? (
+            <ActivityIndicator size="large" color="#EA4080" />
+          ) : meetings.length > 0 ? (
+            meetings.map(m => <MeetingItem key={`${m.groupId}_${m.id}`} item={m} />)
           ) : (
             <Text style={styles.emptyText}>No upcoming meetings.</Text>
           )}
@@ -82,7 +170,6 @@ export default function HomeScreen() {
             <Text style={styles.seeAllText}>See All Places</Text>
           </TouchableOpacity>
         </SectionCard>
-
       </ScrollView>
     </SafeAreaView>
   );
@@ -91,7 +178,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#f4f4f8', // Light background for the whole app
+    backgroundColor: '#f4f4f8',
   },
   container: {
     padding: 15,

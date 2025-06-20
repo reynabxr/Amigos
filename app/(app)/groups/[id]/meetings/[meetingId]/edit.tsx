@@ -28,13 +28,11 @@ export default function EditMeetingScreen() {
   const [initialMeeting, setInitialMeeting] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  // Form state
   const [meetingName, setMeetingName] = useState('');
   const [location, setLocation] = useState('');
   const [date, setDate] = useState<Date>(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
 
-  // Animation for location suggestions (same as your CreateMeetingScreen)
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<any[]>([]);
   const [fadeAnim] = useState(new Animated.Value(0));
@@ -109,7 +107,6 @@ export default function EditMeetingScreen() {
     }
   };
 
-  // Location suggestions logic (same as your CreateMeetingScreen)
   const fetchSuggestions = async (text: string) => {
     setQuery(text);
     if (text.length < 2) {
@@ -172,7 +169,13 @@ export default function EditMeetingScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
-        <Stack.Screen options={{ title: 'Edit Meeting' }} />
+        <Stack.Screen
+            options={{
+            title: 'Edit Meeting',
+            headerBackTitle: 'Back',
+            headerShown: true,
+            }}
+            />
         <ScrollView
           contentContainerStyle={{ padding: 20, paddingBottom: 100 }}
           keyboardShouldPersistTaps="handled"

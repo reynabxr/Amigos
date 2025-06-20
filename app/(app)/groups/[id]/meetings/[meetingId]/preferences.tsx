@@ -66,7 +66,13 @@ export default function PreferencesScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Stack.Screen options={{ title: 'Your Preferences' }} />
+      <Stack.Screen
+        options={{
+        title: 'Set Preferences',
+        headerBackTitle: 'Back',
+        headerShown: true,
+        }}
+        />
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <Text style={styles.sectionTitle}>Cuisine Preference</Text>
             <View style={styles.chipContainer}>

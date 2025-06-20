@@ -190,7 +190,7 @@ export default function GroupDetailsScreen() {
               <TouchableOpacity
                 key={meeting.id}
                 style={styles.meetingItem}
-                onPress={() => router.push({ pathname: `/groups/[id]/meetings/[meetingId]`, params: { id: group.id, meetingId: meeting.id } })}
+                onPress={() => router.push({ pathname: `/meeting-details/[groupId]/[meetingId]`, params: { groupId: group.id, meetingId: meeting.id, from: 'group'} })}
               >
                 <View style={styles.meetingRow}>
                   <Ionicons name="time-outline" size={16} color="#777" style={{ marginRight: 6 }} />
