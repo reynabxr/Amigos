@@ -139,6 +139,8 @@ export default function MeetingDetailsScreen() {
                         pathname: '/groups/[id]',
                         params: { id: groupId },
                         });
+                      } else if (from === 'see-all-meetings') {
+                        router.replace('/see-all-meetings');
                     } else {
                         router.back();
                     }
