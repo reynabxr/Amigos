@@ -261,7 +261,7 @@ export default function DietaryPreferencesScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#fff', // White background for the screen
+    backgroundColor: '#fff',
   },
   loadingContainer: {
     flex: 1,
@@ -298,7 +298,7 @@ const styles = StyleSheet.create({
   scrollContentContainer: {
     paddingHorizontal: 20,
     paddingTop: 20,
-    paddingBottom: 20, // Space for content before the button
+    paddingBottom: 20,
   },
   subtitle: {
     fontSize: 15,
