@@ -153,7 +153,8 @@ export default function MeetingDetailsScreen() {
 
       <TouchableOpacity
         onPress={() =>
-          router.push({ pathname: `/groups/[id]/meetings/[meetingId]/edit`, params: { id: groupId, meetingId } })
+          router.push({ pathname: "/meeting-edit/[groupId]/[meetingId]", params: { groupId, meetingId } })
+          
         }
         style={styles.editMeetingButtonTouchable}
       >
@@ -193,10 +194,7 @@ export default function MeetingDetailsScreen() {
         <TouchableOpacity
           style={styles.preferenceButton}
           onPress={() =>
-            router.push({
-              pathname: `/groups/[id]/meetings/[meetingId]/preferences`,
-              params: { id: groupId, meetingId },
-            })
+            router.push({ pathname: "/meeting-preferences/[groupId]/[meetingId]", params: { groupId, meetingId, from } })
           }
           activeOpacity={0.7}
         >

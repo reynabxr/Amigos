@@ -4,7 +4,7 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, SafeAreaView, ScrollView, StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 
-import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, query, orderBy } from 'firebase/firestore';
 import { GroupData, IconSetType, availableIcons, getIconSetComponent } from '.';
 import { auth, db } from '../../../services/firebaseConfig';
 
@@ -89,18 +89,41 @@ export default function GroupDetailsScreen() {
     fetchGroupDetails();
   }, [id, fetchMemberDisplayNames, router]);
   
-  const [meetings, setMeetings] = useState<any[]>([]);
+  type Meeting = {
+    id: string;
+    name: string;
+    date: any;
+    location?: string;
+    [key: string]: any;
+  };
+  const [meetings, setMeetings] = useState<Meeting[]>([]);
 
   useEffect(() => {
     if (!id) return;
     const fetchMeetings = async () => {
       const meetingsRef = collection(db, 'groups', id, 'meetings');
-      const snapshot = await getDocs(meetingsRef);
-      const meetingsList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setMeetings(meetingsList);
+      const meetingsQuery = query(meetingsRef, orderBy('date', 'asc'));
+      const snapshot = await getDocs(meetingsQuery);
+      const now = Date.now();
+      const meetingsList: Meeting[] = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          name: data.name,
+          date: data.date,
+          ...data,
+        };
+      });
+      const upcomingMeetings = meetingsList.filter(meeting => {
+        const meetingTime = meeting.date?.toDate 
+        ? meeting.date.toDate().getTime() 
+        : new Date(meeting.date).getTime();
+      return meetingTime > now;
+      });
+      setMeetings(upcomingMeetings);
     };
     fetchMeetings();
-  }, [id])
+  }, [id]);
 
   if (isLoading) {
     return (
@@ -190,7 +213,7 @@ export default function GroupDetailsScreen() {
               <TouchableOpacity
                 key={meeting.id}
                 style={styles.meetingItem}
-                onPress={() => router.push({ pathname: `/meeting-details/[groupId]/[meetingId]`, params: { groupId: group.id, meetingId: meeting.id, from: 'group'} })}
+                onPress={() => router.replace({ pathname: `/meeting-details/[groupId]/[meetingId]`, params: { groupId: group.id, meetingId: meeting.id, from: 'group'} })}
               >
                 <View style={styles.meetingRow}>
                   <Ionicons name="time-outline" size={16} color="#777" style={{ marginRight: 6 }} />

@@ -59,11 +59,10 @@ export default function HomeScreen() {
 
     setLoadingMeetings(true);
 
-    // 1. Listen to groups
     const groupsRef = collection(db, 'groups');
     const groupsQuery = query(groupsRef, where('members', 'array-contains', user.uid));
     groupUnsubscribe = onSnapshot(groupsQuery, (groupsSnapshot) => {
-      // Clean up previous meetings listeners
+
       meetingsUnsubscribes.forEach(unsub => unsub());
       meetingsUnsubscribes = [];
 
@@ -81,20 +80,18 @@ export default function HomeScreen() {
         const meetingsRef = collection(db, 'groups', groupId, 'meetings');
         const meetingsQuery = query(meetingsRef, orderBy('date', 'desc'));
 
-        // 2. Listen to each group's meetings
         const meetingsUnsub = onSnapshot(meetingsQuery, (meetingsSnapshot) => {
+          const now = new Date();
           const groupMeetings = meetingsSnapshot.docs.map(doc => ({
             id: doc.id,
             groupId,
             ...doc.data(),
             date: doc.data().date?.toDate ? doc.data().date.toDate() : new Date(doc.data().date),
-          }));
+          }))
+          .filter(meeting => meeting.date > now);
 
-          // Remove old meetings for this group and add new ones
           setMeetings(prevMeetings => {
-            // Remove old meetings for this group
             const filtered = prevMeetings.filter(m => m.groupId !== groupId);
-            // Add new ones
             return [...filtered, ...groupMeetings].sort((a, b) => a.date - b.date);
           });
 
@@ -125,7 +122,7 @@ export default function HomeScreen() {
   const MeetingItem = ({ item }: any) => (
     <TouchableOpacity style={styles.meetingItem}
       onPress={() =>
-          router.push({
+          router.replace({
             pathname: '/meeting-details/[groupId]/[meetingId]',
             params: { groupId: item.groupId, meetingId: item.id, from: 'home'},
           })
