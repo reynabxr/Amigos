@@ -169,8 +169,16 @@ export default function EditMeetingScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
-        <Stack.Screen options={{title: 'Edit Meeting'}}
-            />
+        <Stack.Screen
+          options={{
+            title: 'Edit Meeting',
+            headerRight: () => (
+              <TouchableOpacity onPress={() => router.back()} style={{ marginRight: 15 }}>
+                <Ionicons name="close" size={24} color="#EA4080" />
+              </TouchableOpacity>
+            ),
+          }}
+        />
         <ScrollView
           contentContainerStyle={{ padding: 20, paddingBottom: 100 }}
           keyboardShouldPersistTaps="handled"

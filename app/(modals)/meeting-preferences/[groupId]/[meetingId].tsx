@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
@@ -16,6 +17,8 @@ export default function PreferencesScreen() {
   const [selectedBudget, setSelectedBudget] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [initialCuisines, setInitialCuisines] = useState<string[]>([]);
+  const [initialBudget, setInitialBudget] = useState<string>('');
 
   const userId = auth.currentUser?.uid;
 
@@ -29,6 +32,11 @@ export default function PreferencesScreen() {
           const data = snap.data();
           setSelectedCuisines(data.cuisines || []);
           setSelectedBudget(data.budget || '');
+          setInitialCuisines(data.cuisines || []);
+          setInitialBudget(data.budget || '');
+        } else {
+          setInitialCuisines([]);
+          setInitialBudget('');
         }
       } catch (e) {
         console.error('Failed to load preferences:', e);
@@ -55,8 +63,15 @@ export default function PreferencesScreen() {
     } finally {
         setSaving(false);
     }
-    };
+  };
 
+  const havePreferencesChanged = () => {
+    const cuisinesChanged =
+      JSON.stringify([...selectedCuisines].sort()) !==
+      JSON.stringify([...initialCuisines].sort());
+    const budgetChanged = selectedBudget !== initialBudget;
+    return cuisinesChanged || budgetChanged;
+  };
 
   if (loading) {
     return (
@@ -66,51 +81,64 @@ export default function PreferencesScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Stack.Screen options={{title: 'Set Preferences'}}
+      <Stack.Screen
+          options={{
+            title: 'Set Preferences',
+            headerRight: () => (
+              <TouchableOpacity onPress={() => router.back()} style={{ marginRight: 15 }}>
+                <Ionicons name="close" size={24} color="#EA4080" />
+              </TouchableOpacity>
+            ),
+          }}
         />
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <Text style={styles.sectionTitle}>Cuisine Preference</Text>
             <View style={styles.chipContainer}>
-            <TouchableOpacity
+              <TouchableOpacity
                 style={[
-                styles.chip,
-                selectedCuisines.length === 0 && styles.chipSelected,
+                  styles.chip,
+                  selectedCuisines.length === 0 ? styles.chipSelected : styles.chipUnselected,
                 ]}
                 onPress={() => setSelectedCuisines([])}
-            >
-                <Text style={[
+              >
+                <Text
+                  style={[
                     styles.chipText,
-                    selectedCuisines.length === 0 && styles.chipTextSelected,
-                ]}
+                    selectedCuisines.length === 0 ? styles.chipTextSelected : styles.chipTextUnselected,
+                  ]}
                 >
-                    No Preference
+                  No Preference
                 </Text>
-            </TouchableOpacity>
+              </TouchableOpacity>
 
-            {CUISINE_OPTIONS.map((option) => (
-                <TouchableOpacity
-                key={option}
-                style={[
-                    styles.chip,
-                    selectedCuisines.includes(option) && styles.chipSelected,
-                ]}
+              {CUISINE_OPTIONS.map((option) => {
+                const selected = selectedCuisines.includes(option);
+                return (
+                  <TouchableOpacity
+                    key={option}
+                    style={[
+                      styles.chip,
+                      selected ? styles.chipSelected : styles.chipUnselected,
+                    ]}
                     onPress={() => {
-                        if (selectedCuisines.includes(option)) {
+                      if (selected) {
                         setSelectedCuisines(selectedCuisines.filter((c) => c !== option));
-                        } else {
+                      } else {
                         setSelectedCuisines([...selectedCuisines, option]);
-                        }
-                }}
-                >
-                <Text style={[
-                    styles.chipText,
-                    selectedCuisines.includes(option) && styles.chipTextSelected,
-                ]}
-                >
-                    {option}
-                </Text>
-                </TouchableOpacity>
-            ))}
+                      }
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.chipText,
+                        selected ? styles.chipTextSelected : styles.chipTextUnselected,
+                      ]}
+                    >
+                      {option}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
 
 
@@ -157,22 +185,25 @@ export default function PreferencesScreen() {
 
 
         <TouchableOpacity
-            onPress={savePreferences}
-            style={styles.saveButtonTouchable}
-            disabled={saving}
+          onPress={savePreferences}
+          style={[
+            styles.saveButtonTouchable,
+            (!havePreferencesChanged() || saving) && { opacity: 0.5 },
+          ]}
+          disabled={saving || !havePreferencesChanged()}
         >
-            <LinearGradient
-                colors={['#ea4080', '#FFC174']}
-                start={{ x: 0, y: 0.5 }}
-                end={{ x: 1, y: 0.5 }}
-                style={styles.gradient}
-            >
-                {saving ? (
-                <ActivityIndicator color="#fff" />
-                ) : (
-                <Text style={styles.saveButtonText}>Save Preferences</Text>
-                )}
-            </LinearGradient>
+          <LinearGradient
+            colors={(!havePreferencesChanged() || saving) ? ['#ccc', '#aaa'] : ['#ea4080', '#FFC174']}
+            start={{ x: 0, y: 0.5 }}
+            end={{ x: 1, y: 0.5 }}
+            style={styles.gradient}
+          >
+            {saving ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.saveButtonText}>Save Preferences</Text>
+            )}
+          </LinearGradient>
         </TouchableOpacity>
 
       </ScrollView>
@@ -207,27 +238,32 @@ const styles = StyleSheet.create({
   chipContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
+    justifyContent: 'center',
   },
   chip: {
-    backgroundColor: '#f9f9f9',
     paddingVertical: 8,
-    paddingHorizontal: 14,
+    paddingHorizontal: 15,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#ddd',
+    margin: 5,
+  },
+  chipUnselected: {
+    borderColor: '#ccc',
+    backgroundColor: '#fff',
   },
   chipSelected: {
-    backgroundColor: '#EA4080',
-    borderColor: '#EA4080',
+    borderColor: '#EA4080', 
+    backgroundColor: '#fff0f0', 
   },
   chipText: {
-    color: '#333',
     fontSize: 14,
-    fontWeight: '500',
+  },
+  chipTextUnselected: {
+    color: '#777', 
   },
   chipTextSelected: {
-    color: '#fff',
+    color: '#EA4080', 
+    fontWeight: '500',
   },
   radioContainer: {
     flexDirection: 'column',

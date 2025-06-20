@@ -4,6 +4,8 @@ import React, { useEffect, useRef } from 'react';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { auth, db } from '../../services/firebaseConfig';
 import { User } from '@firebase/auth';
+import { Slot } from "expo-router";
+import AuthState from "../../components/AuthState";
 
 export default function AppTabLayout() {
   const router = useRouter();
@@ -45,63 +47,65 @@ export default function AppTabLayout() {
   }, [router]);
 
   return (
-    <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: '#E15A7C',
-        tabBarInactiveTintColor: 'gray',
-      }}
-    >
-      <Tabs.Screen
-        name="home" 
-        options={{
-          title: 'Home',
-          tabBarIcon: ({ color, size }) => (<Ionicons name="home-outline" size={size} color={color} />),
-          headerTitle: 'Amigos Home',
+    <AuthState>
+      <Tabs
+        screenOptions={{
+          tabBarActiveTintColor: '#E15A7C',
+          tabBarInactiveTintColor: 'gray',
         }}
-      />
-      <Tabs.Screen
-        name="groups" 
-        options={{
-          title: 'Groups',
-          tabBarIcon: ({ color, size }) => (<MaterialCommunityIcons name="account-group-outline" size={size} color={color} />),
-          headerShown: false,
-        }}
-      />
-      <Tabs.Screen
-        name="profile" 
-        options={{
-          title: 'Profile',
-          tabBarIcon: ({ color, size }) => (<FontAwesome name="user-o" size={size} color={color} />),
-          headerShown: false,
-        }}
-      />
-      <Tabs.Screen
-        name="preferences"
-        options={{
-          href: null,
-          headerShown: false,
-        }}
-      />
-      <Tabs.Screen 
-        name="index"
-        options={{
-          href: null,
-        }}
-      />
-      <Tabs.Screen
-        name="meeting-details"
-        options={{
-          href: null,
-          headerShown: false,
-        }}
-      />
-      <Tabs.Screen
-        name="see-all-meetings"
-        options={{
-          href: null,
-          headerShown: true,
-        }}
-      />
-    </Tabs>
+      >
+        <Tabs.Screen
+          name="home" 
+          options={{
+            title: 'Home',
+            tabBarIcon: ({ color, size }) => (<Ionicons name="home-outline" size={size} color={color} />),
+            headerTitle: 'Amigos Home',
+          }}
+        />
+        <Tabs.Screen
+          name="groups" 
+          options={{
+            title: 'Groups',
+            tabBarIcon: ({ color, size }) => (<MaterialCommunityIcons name="account-group-outline" size={size} color={color} />),
+            headerShown: false,
+          }}
+        />
+        <Tabs.Screen
+          name="profile" 
+          options={{
+            title: 'Profile',
+            tabBarIcon: ({ color, size }) => (<FontAwesome name="user-o" size={size} color={color} />),
+            headerShown: false,
+          }}
+        />
+        <Tabs.Screen
+          name="preferences"
+          options={{
+            href: null,
+            headerShown: false,
+          }}
+        />
+        <Tabs.Screen 
+          name="index"
+          options={{
+            href: null,
+          }}
+        />
+        <Tabs.Screen
+          name="meeting-details"
+          options={{
+            href: null,
+            headerShown: false,
+          }}
+        />
+        <Tabs.Screen
+          name="see-all-meetings"
+          options={{
+            href: null,
+            headerShown: true,
+          }}
+        />
+      </Tabs>
+    </AuthState>
   );
 }
