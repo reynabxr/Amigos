@@ -1,6 +1,9 @@
 import { Ionicons } from '@expo/vector-icons'; // For example icons
+import { useRouter } from 'expo-router';
+import { collection, onSnapshot, orderBy, query, where } from 'firebase/firestore';
 import React, { useEffect, useState, } from 'react';
 import {
+  ActivityIndicator,
   Image,
   SafeAreaView,
   ScrollView,
@@ -9,11 +12,15 @@ import {
   Text,
   TouchableOpacity,
   View,
-  ActivityIndicator,
 } from 'react-native';
-import { collection, getDocs, query, orderBy, where, onSnapshot } from 'firebase/firestore';
-import { db, auth } from '../../services/firebaseConfig';
-import { Link, useRouter } from 'expo-router';
+import { auth, db } from '../../services/firebaseConfig';
+
+import {
+  fetchManual,
+  fetchRecommendations,
+  getConsensus,
+  recordVote,
+} from '../../services/recommendationServices';
 
 const placesEatenData = [
   { id: '1', name: 'Pizza Hut', lastVisited: 'Last week', rating: 4, image: 'https://via.placeholder.com/100x80.png?text=Pizza' },
@@ -45,6 +52,45 @@ export default function HomeScreen() {
   const [meetings, setMeetings] = useState<any[]>([]);
   const [loadingMeetings, setLoadingMeetings] = useState(true);
   const router = useRouter();
+
+  // ────────────────────────────────────────────
+  // 🔥 SMOKE‐TEST your recommendationService 🔥
+  // ────────────────────────────────────────────
+  useEffect(() => {
+    ;(async () => {
+      // 1) Substitute real IDs from your Firestore:
+      const testGroupId   = 'F6U5JHLG5DqwI275jn8T'
+      const testMeetingId = 'vSEdW5CPyew4Es7nmZaN'
+      try {
+        const manual = await fetchManual(testGroupId, testMeetingId)
+        console.log('🔥 manualSuggestions:', manual)
+
+        const recs = await fetchRecommendations(
+          testGroupId,
+          testMeetingId,
+          'Singapore'   // or use a dynamic location if you prefer
+        )
+        console.log('🔥 recommendations:', recs)
+
+        // pick the first place (if any) to vote “yes”
+        if (recs.length) {
+          await recordVote(
+            testGroupId,
+            testMeetingId,
+            auth.currentUser!.uid,
+            recs[0].id,
+            true
+          )
+          console.log(`🔥 voted YES on ${recs[0].name}`)
+        }
+
+        const cons = await getConsensus(testGroupId, testMeetingId)
+        console.log('🔥 consensus:', cons)
+      } catch (err) {
+        console.warn('🔥 recommendationService error:', err)
+      }
+    })()
+  }, [])
 
   useEffect(() => {
     let groupUnsubscribe: (() => void) | null = null;
