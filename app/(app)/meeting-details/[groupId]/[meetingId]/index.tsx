@@ -210,6 +210,29 @@ export default function MeetingDetailsScreen() {
             <Text style={styles.preferenceButtonText}>Set Preferences</Text>
           </LinearGradient>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.preferenceButton}   
+          onPress={() =>
+            router.push({
+              pathname:
+                "/meeting-details/[groupId]/[meetingId]/recommendations",
+              params: { groupId, meetingId },
+            })
+          }
+          activeOpacity={0.7}
+        >
+          <LinearGradient
+            colors={['#00C6FF', '#0072FF']}
+            start={{ x: 0, y: 0.5 }}
+            end={{ x: 1, y: 0.5 }}
+            style={styles.gradient}
+          >
+            <Ionicons name="restaurant-outline" size={20} color="#fff" />
+            <Text style={styles.preferenceButtonText}>
+              Pick Restaurant
+            </Text>
+          </LinearGradient>
+        </TouchableOpacity>
 
       </View>
     </SafeAreaView>

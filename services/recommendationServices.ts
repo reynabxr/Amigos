@@ -1,9 +1,9 @@
-// services/recommendationService.ts
 import {
   collection,
   doc,
   getDoc,
   getDocs,
+  QueryDocumentSnapshot,
   serverTimestamp,
   setDoc,
 } from 'firebase/firestore'
@@ -15,20 +15,23 @@ import {
 } from './foursquareConfig'
 import type { Place } from './types'
 
-// read manual suggestions
+function mapFoursquarePriceToBudget(priceLevel: number | undefined): string {
+  switch (priceLevel) {
+    case 1: return '< $15'
+    case 2: return '$15 - $30'
+    case 3: return '$30 - $50'
+    case 4: return '> $50'
+    default: return ''
+  }
+}
+
+// 1) Manual suggestions
 export async function fetchManual(
   groupId: string,
   meetingId: string
 ): Promise<Place[]> {
   const snap = await getDocs(
-    collection(
-      db,
-      'groups',
-      groupId,
-      'meetings',
-      meetingId,
-      'manualSuggestions'
-    )
+    collection(db, 'groups', groupId, 'meetings', meetingId, 'manualSuggestions')
   )
   return snap.docs.map((d) => ({
     id: d.id,
@@ -36,10 +39,49 @@ export async function fetchManual(
   }))
 }
 
-// query suggestions from Foursquare
+// 2a) Foursquare by coords
+async function fetchFoursquareByCoords(
+  lat: number,
+  lng: number,
+  limit = 20
+): Promise<Place[]> {
+  const qs = new URLSearchParams({
+    ll: `${lat},${lng}`,
+    limit: String(limit),
+    query: 'restaurant',
+  })
+  const res = await fetch(`${FSQ_BASE}/search?${qs.toString()}`, {
+    method: 'GET',
+    headers: {
+      accept: 'application/json',
+      'X-Places-Api-Version': FSQ_API_VERSION,
+      authorization: FSQ_TOKEN,
+    },
+  })
+  if (!res.ok) throw new Error(`Foursquare error ${res.status}`)
+  const json = await res.json()
+  return (json.results || []).map((r: any) => {
+    const latitude = r.geocodes?.main?.latitude ?? r.latitude
+    const longitude = r.geocodes?.main?.longitude ?? r.longitude
+    const address =
+      r.location?.formatted_address ||
+      [r.location?.address, r.location?.locality].filter(Boolean).join(', ')
+    return {
+      id: r.fsq_place_id,
+      name: r.name,
+      address,
+      lat: latitude,
+      lng: longitude,
+      category: r.categories?.[0]?.name ?? 'Unknown',
+      cuisines: [], // will be filled by OSM
+      budget: mapFoursquarePriceToBudget(r.price?.tier),
+      dietaryFlags: [],
+    } as Place
+  })
+}
 
-// services/recommendationService.ts
-export async function fetchFoursquare(
+// 2b) Foursquare by text (fallback if no coords)
+async function fetchFoursquareByText(
   near: string,
   limit = 20
 ): Promise<Place[]> {
@@ -47,140 +89,243 @@ export async function fetchFoursquare(
     near,
     limit: String(limit),
     query: 'restaurant',
-  });
-  const res = await fetch(`${FSQ_BASE}/search?${qs}`, {
+  })
+  const res = await fetch(`${FSQ_BASE}/search?${qs.toString()}`, {
     method: 'GET',
     headers: {
       accept: 'application/json',
       'X-Places-Api-Version': FSQ_API_VERSION,
       authorization: FSQ_TOKEN,
     },
-  });
-  if (!res.ok) throw new Error(`FSQ ${res.status}`);
-  const json = await res.json();
+  })
+  if (!res.ok) throw new Error(`Foursquare error ${res.status}`)
+  const json = await res.json()
+  return (json.results || [])
+    .map((r: any) => {
+      const latitude: number | undefined =
+        r.geocodes?.main?.latitude ?? r.latitude
+      const longitude: number | undefined =
+        r.geocodes?.main?.longitude ?? r.longitude
+      if (typeof latitude !== 'number' || typeof longitude !== 'number')
+        return null
+      const address: string =
+        r.location?.formatted_address ||
+        [r.location?.address, r.location?.locality].filter(Boolean).join(', ')
+      return {
+        id: r.fsq_place_id,
+        name: r.name,
+        address,
+        lat: latitude,
+        lng: longitude,
+        category: r.categories?.[0]?.name ?? 'Unknown',
+        cuisines: [],
+        budget: r.price?.currency ?? '',
+        dietaryFlags: [],
+      } as Place
+    })
+    .filter((p: Place | null): p is Place => p !== null)
 
-  const places: Place[] = [];
-  for (const r of json.results||[]) {
-    // try geocodes.main first, then top-level latitude
-    const lat =
-      typeof r.geocodes?.main?.latitude === 'number'
-        ? r.geocodes.main.latitude
-        : typeof r.latitude === 'number'
-          ? r.latitude
-          : undefined;
-    const lng =
-      typeof r.geocodes?.main?.longitude === 'number'
-        ? r.geocodes.main.longitude
-        : typeof r.longitude === 'number'
-          ? r.longitude
-          : undefined;
-    if (lat == null || lng == null) continue;
-
-    // build a display address
-    const address =
-      r.location?.formatted_address ||
-      [r.location?.address, r.location?.locality].filter(Boolean).join(', ');
-
-    places.push({
-      id: r.fsq_place_id,
-      name: r.name,
-      address,
-      lat,
-      lng,
-      category: r.categories?.[0]?.name || 'Unknown',
-      budget: r.price?.currency || '',
-      dietaryFlags: [],
-    });
-  }
-  return places;
 }
 
-// consider OSM diet tags
-// services/recommendationService.ts
+// 3) OSM diet tags enrichment
 const OSM_URL = 'https://overpass-api.de/api/interpreter'
+const OSM_DIET_TAGS = [
+  'vegetarian', 'vegan', 'halal', 'kosher', 'gluten_free', 'lactose_free',
+  'pescetarian', 'nut_free', 'egg_free', 'soy_free'
+];
 
 export async function enrichWithOsmFlags(
   lat: number,
   lng: number
-): Promise<string[]> {
+): Promise<{ dietaryFlags: string[], cuisines: string[] }> {
   const query = `
     [out:json][timeout:25];
-    node(around:50,${lat},${lng})
-      ["amenity"="restaurant"]["diet:vegetarian"];
-    node(around:50,${lat},${lng})
-      ["amenity"="restaurant"]["diet:vegan"];
-    node(around:50,${lat},${lng})
-      ["amenity"="restaurant"]["diet:halal"];
+    node(around:50,${lat},${lng})["amenity"="restaurant"];
     out tags;`
-
   try {
     const res = await fetch(OSM_URL + '?data=' + encodeURIComponent(query))
     const text = await res.text()
-    // quick guard: Overpass sometimes returns HTML on error
     if (!text.trim().startsWith('{')) {
-      console.warn('OSM returned non-JSON, skipping enrichment:', text.slice(0,200))
-      return []
+      console.warn('OSM returned non-JSON:', text.slice(0, 200))
+      return { dietaryFlags: [], cuisines: [] }
     }
     const data = JSON.parse(text) as any
     const flags = new Set<string>()
+    const cuisines = new Set<string>()
     for (const el of data.elements || []) {
       const tags = el.tags || {}
-      if (tags['diet:vegetarian']) flags.add('Vegetarian')
-      if (tags['diet:vegan'])       flags.add('Vegan')
-      if (tags['diet:halal'])       flags.add('Halal')
+      for (const tag of OSM_DIET_TAGS) {
+        if (tags[`diet:${tag}`]) {
+          // e.g. "Gluten_free" → "Gluten-free"
+          flags.add(tag.replace('_', '-').replace(/^\w/, c => c.toUpperCase()))
+        }
+      }
+      if (tags['cuisine']) {
+        tags['cuisine'].split(';').forEach((c: string) =>
+          cuisines.add(c.trim().replace(/^\w/, x => x.toUpperCase()))
+        )
+      }
     }
-    return Array.from(flags)
+    return { dietaryFlags: Array.from(flags), cuisines: Array.from(cuisines) }
   } catch (e) {
     console.warn('OSM enrichment failed:', e)
-    return []
+    return { dietaryFlags: [], cuisines: [] }
   }
 }
 
-// load group-wide preferences
+// 4) Group-wide dietary restrictions
 export async function fetchGroupRestrictions(
   groupId: string
 ): Promise<string[]> {
-  const grp = await getDoc(doc(db, 'groups', groupId))
-  const members: string[] = grp.data()?.members || []
+  const grpSnap = await getDoc(doc(db, 'groups', groupId))
+  const members: string[] = grpSnap.data()?.members || []
   const all = await Promise.all(
     members.map(async (uid) => {
-      const u = await getDoc(doc(db, 'users', uid))
-      return u.data()?.dietaryPreferences || []
+      const uSnap = await getDoc(doc(db, 'users', uid))
+      return uSnap.data()?.dietaryPreferences || []
     })
   )
   return all.flat()
 }
 
-// generate final recommendations
+// 5) Full recommendation pipeline
 export async function fetchRecommendations(
   groupId: string,
-  meetingId: string,
-  near: string
+  meetingId: string
 ): Promise<Place[]> {
-  const [manual, fsq] = await Promise.all([
-    fetchManual(groupId, meetingId),
-    fetchFoursquare(near),
-  ])
-  await Promise.all(
-    fsq.map(async (p) => {
-      p.dietaryFlags = await enrichWithOsmFlags(p.lat, p.lng)
-    })
-  )
- const reqs = await fetchGroupRestrictions(groupId)
+  // 1. Manual suggestions
+  const manual = await fetchManual(groupId, meetingId);
 
-// allow any place with NO tags, or that satisfies all reqs
-const filtered = reqs.length
-  ? fsq.filter(p =>
-      p.dietaryFlags.length === 0 ||
-      reqs.every(r => p.dietaryFlags.includes(r))
-    )
-  : fsq
-  const map = new Map<string, Place>()
-  ;[...manual, ...filtered].forEach((p) => map.set(p.id, p))
-  return Array.from(map.values())
+  // 2. Meeting doc for coords/text
+  const mSnap = await getDoc(doc(db, 'groups', groupId, 'meetings', meetingId));
+  const m = mSnap.exists() ? (mSnap.data() as any) : {};
+  const lat = m.lat as number | undefined;
+  const lng = m.lng as number | undefined;
+  const txt = m.location as string | undefined;
+
+  // 3. Fetch Foursquare
+  let fsqList: Place[] = [];
+  try {
+    if (typeof lat === 'number' && typeof lng === 'number') {
+      fsqList = await fetchFoursquareByCoords(lat, lng);
+    } else if (typeof txt === 'string') {
+      fsqList = await fetchFoursquareByText(txt);
+    } else {
+      throw new Error('No coords or text for FSQ lookup');
+    }
+  } catch (e: any) {
+    console.warn('FSQ fetch failed:', e.message);
+    fsqList = await fetchFoursquareByCoords(1.3521, 103.8198); // fallback: Singapore center
+  }
+
+  // 4. Enrich with OSM dietary tags and cuisines
+  await Promise.all(
+    fsqList.map(async (p: Place) => {
+      const { dietaryFlags, cuisines } = await enrichWithOsmFlags(p.lat, p.lng);
+      p.dietaryFlags = dietaryFlags;
+      p.cuisines = cuisines;
+    })
+  );
+
+  // 5. Fetch group dietary restrictions and preferences
+  const reqs = await fetchGroupRestrictions(groupId); // e.g. ["Halal", "Vegetarian", "Vegan", ...]
+  const prefsSnap = await getDocs(
+    collection(db, 'groups', groupId, 'meetings', meetingId, 'preferences')
+  );
+  let cuisineCounts: Record<string, number> = {};
+  let budgetCounts: Record<string, number> = {};
+  prefsSnap.forEach((doc) => {
+    const data = doc.data();
+    (data.cuisines || []).forEach((c: string) => {
+      cuisineCounts[c] = (cuisineCounts[c] || 0) + 1;
+    });
+    if (data.budget) {
+      budgetCounts[data.budget] = (budgetCounts[data.budget] || 0) + 1;
+    }
+  });
+  const topCuisines = Object.entries(cuisineCounts)
+    .sort((a, b) => b[1] - a[1])
+    .map(([c]) => c);
+  const topBudgets = Object.entries(budgetCounts)
+    .sort((a, b) => b[1] - a[1])
+    .map(([b]) => b);
+
+  // Halal filtering that includes explicitly Halal or not tagged
+  if (reqs.includes('Halal')) {
+  fsqList = fsqList.filter(
+    (p: Place) =>
+      p.dietaryFlags.includes('Halal') ||
+      p.dietaryFlags.length === 0 // allow untagged
+  );
+  // sort so Halal-tagged appear first
+  fsqList.sort((a, b) => {
+    const aHalal = a.dietaryFlags.includes('Halal') ? 1 : 0;
+    const bHalal = b.dietaryFlags.includes('Halal') ? 1 : 0;
+    return bHalal - aHalal;
+  });
 }
 
-// record a vote
+  // Soft tags (Vegetarian, Vegan, etc): ensure at least 2 of each if requested
+  const softTags = ['Vegetarian', 'Vegan', 'Kosher', 'Gluten-free', 'Lactose-free', 'Pescetarian', 'Nut-free', 'Egg-free', 'Soy-free'];
+  const map = new Map<string, Place>();
+  manual.forEach((p: Place) => map.set(p.id, p));
+  softTags.forEach(tag => {
+    if (reqs.includes(tag)) {
+      let tagPlaces = fsqList.filter((p: Place) => p.dietaryFlags.includes(tag));
+      if (tagPlaces.length < 2) {
+        tagPlaces = [
+          ...tagPlaces,
+          ...fsqList
+            .filter(
+              (p: Place) =>
+                !p.dietaryFlags.includes(tag) && p.dietaryFlags.length === 0
+            )
+            .slice(0, 2 - tagPlaces.length),
+        ];
+      }
+      tagPlaces.forEach((p: Place) => map.set(p.id, p));
+    }
+  });
+  fsqList.forEach((p: Place) => map.set(p.id, p));
+  let merged = Array.from(map.values());
+
+  // Sort by cuisine and budget preferences (prioritise, not filter)
+  merged.sort((a, b) => {
+    // Cuisine boost: match either Foursquare category or any OSM cuisine
+    const aCuisineScore =
+      topCuisines.some(
+        (c) =>
+          a.category.toLowerCase().includes(c.toLowerCase()) ||
+          (a.cuisines || []).some((oc) => oc.toLowerCase() === c.toLowerCase())
+      )
+        ? 1
+        : 0;
+    const bCuisineScore =
+      topCuisines.some(
+        (c) =>
+          b.category.toLowerCase().includes(c.toLowerCase()) ||
+          (b.cuisines || []).some((oc) => oc.toLowerCase() === c.toLowerCase())
+      )
+        ? 1
+        : 0;
+    // Budget boost
+    const aBudgetScore = topBudgets.includes(a.budget) ? 1 : 0;
+    const bBudgetScore = topBudgets.includes(b.budget) ? 1 : 0;
+    // Soft dietary boost
+    const aSoft = softTags.some((tag) => reqs.includes(tag) && a.dietaryFlags.includes(tag)) ? 1 : 0;
+    const bSoft = softTags.some((tag) => reqs.includes(tag) && b.dietaryFlags.includes(tag)) ? 1 : 0;
+    return (
+      bSoft - aSoft ||
+      bCuisineScore - aCuisineScore ||
+      bBudgetScore - aBudgetScore
+    );
+  });
+
+  console.log('✅ Recommendations:', merged);
+  return merged;
+}
+
+// 6) Record a swipe vote
 export async function recordVote(
   groupId: string,
   meetingId: string,
@@ -190,39 +335,40 @@ export async function recordVote(
 ) {
   const id = `${memberId}_${restaurantId}`
   await setDoc(
-    doc(
-      db,
-      'groups',
-      groupId,
-      'meetings',
-      meetingId,
-      'votes',
-      id
-    ),
+    doc(db, 'groups', groupId, 'meetings', meetingId, 'votes', id),
     { memberId, restaurantId, vote, updatedAt: serverTimestamp() }
   )
 }
 
-// check consensus
+// 7) Consensus logic
 export async function getConsensus(
   groupId: string,
   meetingId: string
 ): Promise<{ status: 'none' | 'chosen' | 'top'; restaurantId?: string }> {
-  const grp = await getDoc(doc(db, 'groups', groupId))
-  const total = (grp.data()?.members || []).length
-  const snap = await getDocs(
+  const grpSnap = await getDoc(doc(db, 'groups', groupId))
+  const total = (grpSnap.data()?.members || []).length
+  const voteSnap = await getDocs(
     collection(db, 'groups', groupId, 'meetings', meetingId, 'votes')
   )
+
   const tally: Record<string, { yes: number; no: number }> = {}
-  snap.docs.forEach((d) => {
+  voteSnap.docs.forEach((d: QueryDocumentSnapshot) => {
     const { restaurantId, vote } = d.data() as any
     tally[restaurantId] ??= { yes: 0, no: 0 }
     vote ? tally[restaurantId].yes++ : tally[restaurantId].no++
   })
+
+  // unanimous?
   for (const rid in tally) {
-    if (tally[rid].yes === total) return { status: 'chosen', restaurantId: rid }
+    if (tally[rid].yes === total) {
+      return { status: 'chosen', restaurantId: rid }
+    }
   }
+  // top‐voted
   const sorted = Object.entries(tally).sort((a, b) => b[1].yes - a[1].yes)
-  if (sorted.length) return { status: 'top', restaurantId: sorted[0][0] }
+  if (sorted.length) {
+    return { status: 'top', restaurantId: sorted[0][0] }
+  }
   return { status: 'none' }
 }
+
