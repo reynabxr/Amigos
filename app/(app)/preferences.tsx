@@ -20,8 +20,8 @@ const NO_RESTRICTIONS = "I have no dietary restrictions";
 
 const ALL_PREFERENCES = [
   'Halal', 'Vegetarian', 'Vegan', 'Pescatarian', 'Kosher',
-  'Lactose intolerant', 'Non-spicy', 'No beef', 'Nut allergy',
-  'Soy allergy', 'Shellfish allergy', 'Seafood allergy', 'Egg allergy',
+  'Gluten-free', 'Lactose-free', 'Nut-free', 'Egg-free',
+  'Soy-free',
 ];
 
 const ALL_OPTIONS = [NO_RESTRICTIONS, ...ALL_PREFERENCES];

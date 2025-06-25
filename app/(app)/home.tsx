@@ -1,6 +1,9 @@
 import { Ionicons } from '@expo/vector-icons'; // For example icons
+import { useRouter } from 'expo-router';
+import { collection, onSnapshot, orderBy, query, where } from 'firebase/firestore';
 import React, { useEffect, useState, } from 'react';
 import {
+  ActivityIndicator,
   Image,
   SafeAreaView,
   ScrollView,
@@ -9,11 +12,8 @@ import {
   Text,
   TouchableOpacity,
   View,
-  ActivityIndicator,
 } from 'react-native';
-import { collection, getDocs, query, orderBy, where, onSnapshot } from 'firebase/firestore';
-import { db, auth } from '../../services/firebaseConfig';
-import { Link, useRouter } from 'expo-router';
+import { auth, db } from '../../services/firebaseConfig';
 
 const placesEatenData = [
   { id: '1', name: 'Pizza Hut', lastVisited: 'Last week', rating: 4, image: 'https://via.placeholder.com/100x80.png?text=Pizza' },

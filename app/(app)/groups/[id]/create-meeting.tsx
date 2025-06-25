@@ -1,28 +1,24 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { addDoc, collection } from 'firebase/firestore';
+import React, { useState } from 'react';
 import {
-  Alert,
   ActivityIndicator,
-  Button,
-  Platform,
+  Alert,
+  Animated,
+  Keyboard,
+  KeyboardAvoidingView,
   SafeAreaView,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  View,
-  ScrollView,
-  FlatList,
-  KeyboardAvoidingView,
-  Animated,
-  Easing,
-  Keyboard,
+  View
 } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
-import { addDoc, collection } from 'firebase/firestore';
-import { db, auth } from '../../../../services/firebaseConfig';
+import { auth, db } from '../../../../services/firebaseConfig';
 
 export default function CreateMeetingScreen() {
   const router = useRouter();
@@ -30,6 +26,8 @@ export default function CreateMeetingScreen() {
 
   const [meetingName, setMeetingName] = useState('');
   const [location, setLocation] = useState('');
+  const [lat, setLat] = useState<number | null>(null)
+  const [lng, setLng] = useState<number | null>(null)
   const [date, setDate] = useState<Date>(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -40,29 +38,36 @@ export default function CreateMeetingScreen() {
   };
 
   const handleCreateMeeting = async () => {
-    if (!meetingName.trim() || !location.trim()) {
-      Alert.alert('Error', 'Please fill in all fields.');
-      return;
-    }
-    if (!groupId) {
-      return;
-    }
-    setIsSaving(true);
-    try {
-      await addDoc(collection(db, 'groups', groupId, 'meetings'), {
-        name: meetingName.trim(),
-        location: location.trim(),
-        date: date.getTime(),
-        createdBy: auth.currentUser?.uid,
-        createdAt: Date.now(),
-      });
-      Alert.alert('Success', 'Meeting created!');
-      router.back();
-    } catch (e) {
-      Alert.alert('Error', 'Failed to create meeting.');
-    }
-    setIsSaving(false);
-  };
+  if (!meetingName.trim() || !location.trim()) {
+    Alert.alert('Error', 'Please fill in all fields.');
+    return;
+  }
+  if (lat === null || lng === null) {
+    Alert.alert('Error', 'Please select a location from the dropdown.');
+    return;
+  }
+  if (!groupId) {
+    return;
+  }
+
+  setIsSaving(true);
+  try {
+    await addDoc(collection(db, 'groups', groupId, 'meetings'), {
+      name: meetingName.trim(),
+      location: location.trim(),
+      lat,
+      lng,
+      date: date.getTime(),
+      createdBy: auth.currentUser?.uid,
+      createdAt: Date.now(),
+    });
+    Alert.alert('Success', 'Meeting created!');
+    router.back();
+  } catch (e) {
+    Alert.alert('Error', 'Failed to create meeting.');
+  }
+  setIsSaving(false);
+};
 
   const now = new Date();
   const isToday =
@@ -123,6 +128,12 @@ export default function CreateMeetingScreen() {
       }
     }
 
+    // remove duplicate fsq_place_id
+    const uniqueResults = results.filter(
+      (item, idx, arr) =>
+        arr.findIndex(i => i.fsq_place_id === item.fsq_place_id) === idx
+    );
+
     return (
       <View>
         <View style={{ position: 'relative' }}>
@@ -147,7 +158,7 @@ export default function CreateMeetingScreen() {
         )}
       </View>
 
-        {results.length > 0 && (
+        {uniqueResults.length > 0 && (
           <Animated.View
             style={{
               opacity: fadeAnim,
@@ -159,12 +170,22 @@ export default function CreateMeetingScreen() {
               marginBottom: 10,
             }}
           >
-          {results.map((item, index) => (
+          {uniqueResults.map((item, index) => (
             <TouchableOpacity
               key={item.fsq_place_id || index}
               style={styles.resultItem}
               onPress={() => {
                 setLocation(item.name);
+
+                const latitude = item.geocodes?.main?.latitude ?? item.latitude;
+                const longitude = item.geocodes?.main?.longitude ?? item.longitude;
+                if (latitude == null || longitude == null) {
+                Alert.alert('Error', 'Selected place has no location data.');
+                return;
+                }
+                setLat(latitude);
+                setLng(longitude);
+                
                 setQuery(item.name);
                 setResults([]);
               }}

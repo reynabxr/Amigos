@@ -1,11 +1,11 @@
-import { Stack, useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
-import React, { useEffect, useState, useCallback } from 'react';
-import { ActivityIndicator, SafeAreaView, StyleSheet, Text, View, TouchableOpacity, BackHandler } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { collection, doc, getDoc, getDocs, onSnapshot } from 'firebase/firestore';
-import { db } from '../../../../services/firebaseConfig';
-import { Ionicons } from '@expo/vector-icons';
+import React, { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { db } from '../../../../../services/firebaseConfig';
 
 export default function MeetingDetailsScreen() {
   const { groupId, meetingId, from } = useLocalSearchParams<{
@@ -208,6 +208,29 @@ export default function MeetingDetailsScreen() {
           >
             <Ionicons name="fast-food-outline" size={20} color="#fff" />
             <Text style={styles.preferenceButtonText}>Set Preferences</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.preferenceButton}   
+          onPress={() =>
+            router.push({
+              pathname:
+                "/meeting-details/[groupId]/[meetingId]/recommendations",
+              params: { groupId, meetingId },
+            })
+          }
+          activeOpacity={0.7}
+        >
+          <LinearGradient
+            colors={['#00C6FF', '#0072FF']}
+            start={{ x: 0, y: 0.5 }}
+            end={{ x: 1, y: 0.5 }}
+            style={styles.gradient}
+          >
+            <Ionicons name="restaurant-outline" size={20} color="#fff" />
+            <Text style={styles.preferenceButtonText}>
+              Pick Restaurant
+            </Text>
           </LinearGradient>
         </TouchableOpacity>
 
