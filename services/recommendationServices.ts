@@ -3,9 +3,8 @@ import {
   doc,
   getDoc,
   getDocs,
-  QueryDocumentSnapshot,
   serverTimestamp,
-  setDoc,
+  setDoc
 } from 'firebase/firestore'
 import { db } from './firebaseConfig'
 import {
@@ -25,7 +24,7 @@ function mapFoursquarePriceToBudget(priceLevel: number | undefined): string {
   }
 }
 
-// 1) Manual suggestions
+// Manual suggestions
 export async function fetchManual(
   groupId: string,
   meetingId: string
@@ -39,7 +38,7 @@ export async function fetchManual(
   }))
 }
 
-// 2a) Foursquare by coords
+// Foursquare by coords
 async function fetchFoursquareByCoords(
   lat: number,
   lng: number,
@@ -66,6 +65,9 @@ async function fetchFoursquareByCoords(
     const address =
       r.location?.formatted_address ||
       [r.location?.address, r.location?.locality].filter(Boolean).join(', ')
+    const categoryIcon = r.categories?.[0]?.icon
+  ? `${r.categories[0].icon.prefix}bg_120${r.categories[0].icon.suffix}`
+  : undefined;
     return {
       id: r.fsq_place_id,
       name: r.name,
@@ -76,11 +78,13 @@ async function fetchFoursquareByCoords(
       cuisines: [], // will be filled by OSM
       budget: mapFoursquarePriceToBudget(r.price?.tier),
       dietaryFlags: [],
+      image: undefined,
+      categoryIcon,
     } as Place
   })
 }
 
-// 2b) Foursquare by text (fallback if no coords)
+//  Foursquare by text (fallback if no coords)
 async function fetchFoursquareByText(
   near: string,
   limit = 20
@@ -111,6 +115,9 @@ async function fetchFoursquareByText(
       const address: string =
         r.location?.formatted_address ||
         [r.location?.address, r.location?.locality].filter(Boolean).join(', ')
+      const categoryIcon = r.categories?.[0]?.icon
+        ? `${r.categories[0].icon.prefix}bg_120${r.categories[0].icon.suffix}`
+        : undefined;
       return {
         id: r.fsq_place_id,
         name: r.name,
@@ -119,8 +126,10 @@ async function fetchFoursquareByText(
         lng: longitude,
         category: r.categories?.[0]?.name ?? 'Unknown',
         cuisines: [],
-        budget: r.price?.currency ?? '',
+        budget: mapFoursquarePriceToBudget(r.price?.tier),
         dietaryFlags: [],
+        image: undefined, // will be set by photo enrichment
+        categoryIcon,
       } as Place
     })
     .filter((p: Place | null): p is Place => p !== null)
@@ -188,7 +197,28 @@ export async function fetchGroupRestrictions(
   return all.flat()
 }
 
-// 5) Full recommendation pipeline
+// fetch image of restaurant
+async function fetchFoursquarePhoto(fsqId: string): Promise<string | undefined> {
+  const res = await fetch(
+    `https://api.foursquare.com/v3/places/${fsqId}/photos?limit=1`,
+    {
+      headers: {
+        accept: 'application/json',
+        'X-Places-Api-Version': FSQ_API_VERSION,
+        authorization: FSQ_TOKEN,
+      },
+    }
+  );
+  if (!res.ok) return undefined;
+  const photos = await res.json();
+  if (photos.length > 0) {
+    const photo = photos[0];
+    return `${photo.prefix}original${photo.suffix}`;
+  }
+  return undefined;
+}
+
+// full recommendation pipeline
 export async function fetchRecommendations(
   groupId: string,
   meetingId: string
@@ -224,6 +254,9 @@ export async function fetchRecommendations(
       const { dietaryFlags, cuisines } = await enrichWithOsmFlags(p.lat, p.lng);
       p.dietaryFlags = dietaryFlags;
       p.cuisines = cuisines;
+      const img = await fetchFoursquarePhoto(p.id);
+      console.log('Fetched photo for', p.name, img);
+      p.image = img;
     })
   );
 
@@ -325,6 +358,7 @@ export async function fetchRecommendations(
   return merged;
 }
 
+
 // 6) Record a swipe vote
 export async function recordVote(
   groupId: string,
@@ -340,35 +374,41 @@ export async function recordVote(
   )
 }
 
-// 7) Consensus logic
+// returns an array of restaurant IDs
 export async function getConsensus(
   groupId: string,
   meetingId: string
-): Promise<{ status: 'none' | 'chosen' | 'top'; restaurantId?: string }> {
-  const grpSnap = await getDoc(doc(db, 'groups', groupId))
-  const total = (grpSnap.data()?.members || []).length
+): Promise<{ status: 'none' | 'chosen' | 'top'; restaurantIds?: string[] }> {
+  const grpSnap = await getDoc(doc(db, 'groups', groupId));
+  const total = (grpSnap.data()?.members || []).length;
   const voteSnap = await getDocs(
     collection(db, 'groups', groupId, 'meetings', meetingId, 'votes')
-  )
+  );
 
-  const tally: Record<string, { yes: number; no: number }> = {}
-  voteSnap.docs.forEach((d: QueryDocumentSnapshot) => {
-    const { restaurantId, vote } = d.data() as any
-    tally[restaurantId] ??= { yes: 0, no: 0 }
-    vote ? tally[restaurantId].yes++ : tally[restaurantId].no++
-  })
+  const tally: Record<string, { yes: number; no: number }> = {};
+  voteSnap.docs.forEach((d) => {
+    const { restaurantId, vote } = d.data() as any;
+    tally[restaurantId] ??= { yes: 0, no: 0 };
+    vote ? tally[restaurantId].yes++ : tally[restaurantId].no++;
+  });
 
-  // unanimous?
-  for (const rid in tally) {
-    if (tally[rid].yes === total) {
-      return { status: 'chosen', restaurantId: rid }
-    }
+  // Check for unanimous votes
+  const unanimousRestaurants = Object.entries(tally)
+    .filter(([_, counts]) => counts.yes === total)
+    .map(([id, _]) => id);
+  if (unanimousRestaurants.length > 0) {
+    return { status: 'chosen', restaurantIds: unanimousRestaurants };
   }
-  // top‐voted
-  const sorted = Object.entries(tally).sort((a, b) => b[1].yes - a[1].yes)
-  if (sorted.length) {
-    return { status: 'top', restaurantId: sorted[0][0] }
+
+  // Top-voted: find the maximum yes value, then return all IDs with that value.
+  const sorted = Object.entries(tally).sort((a, b) => b[1].yes - a[1].yes);
+  if (sorted.length > 0) {
+    const topYes = sorted[0][1].yes;
+    const topRestaurants = sorted
+      .filter(([_, counts]) => counts.yes === topYes)
+      .map(([id, _]) => id);
+    return { status: 'top', restaurantIds: topRestaurants };
   }
-  return { status: 'none' }
+  return { status: 'none' };
 }
 

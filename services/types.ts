@@ -31,6 +31,9 @@ export interface Place {
   lat: number
   lng: number
   category: string
+  cuisines: string[]
   budget: string
   dietaryFlags: string[]
+  image?: string
+  categoryIcon?: string;  // Foursquare category icon fallback
 }
