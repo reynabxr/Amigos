@@ -1,5 +1,3 @@
-// app/(app)/meeting-details/[groupId]/[meetingId]/recommendations.tsx
-
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import {
@@ -24,7 +22,11 @@ import {
 import Swiper from 'react-native-deck-swiper';
 import { RestaurantCard } from '../../../../../components/RestaurantCard';
 import { auth, db } from '../../../../../services/firebaseConfig';
-import { fetchRecommendations, getConsensus, recordVote } from '../../../../../services/recommendationServices';
+import {
+  fetchRecommendations,
+  getConsensus,
+  recordVote,
+} from '../../../../../services/recommendationServices';
 import type { Place } from '../../../../../services/types';
 
 export default function RecommendationsScreen() {
@@ -32,18 +34,20 @@ export default function RecommendationsScreen() {
   const [places, setPlaces] = useState<Place[]>([]);
   const [loading, setLoading] = useState(true);
   const [finished, setFinished] = useState(false);
-  const [chosen, setChosen] = useState<string | null>(null);
+  // Instead of a single chosen string, we now store consensus data with an array of restaurant IDs.
+  const [consensusData, setConsensusData] = useState<{ status: 'none' | 'chosen' | 'top'; restaurantIds?: string[] } | null>(null);
   const [waiting, setWaiting] = useState(false);
   const [allFinished, setAllFinished] = useState(false);
   const [members, setMembers] = useState<string[]>([]);
   const [finishedMembers, setFinishedMembers] = useState<string[]>([]);
   const [userFinished, setUserFinished] = useState<boolean>(false);
-  // NEW: State to hold the current swipe index
+  // Save the current swipe index so that a user can resume.
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const swiperRef = useRef<Swiper<Place> | null>(null);
   const memberId = auth.currentUser!.uid;
 
-  // A. Load meeting data and saved progress
+  // A. On component mount, load meeting doc, group member info, final recommendation (if exists),
+  // and saved swipe progress.
   useEffect(() => {
     (async () => {
       setLoading(true);
@@ -53,19 +57,25 @@ export default function RecommendationsScreen() {
         if (!mSnap.exists()) throw new Error('Meeting not found');
         const mData = mSnap.data() as any;
 
-        // Load group members:
+        // Load group members.
         const groupSnap = await getDoc(doc(db, 'groups', groupId!));
         setMembers(groupSnap.data()?.members || []);
 
-        // Check if a final recommendation is already set:
+        // Check if a final recommendation is already set.
         if (mData.finalRecommendation) {
-          setChosen(mData.finalRecommendation);
+          setConsensusData({
+            status: mData.finalConsensusStatus || 'chosen',
+            restaurantIds: [mData.finalRecommendation],
+          });
           setFinished(true);
+          // Even if final is reached, fetch recommendations to display the final cards.
+          const recs = await fetchRecommendations(groupId!, meetingId!);
+          setPlaces(recs);
           setLoading(false);
           return;
         }
 
-        // Load saved swipe progress for the user:
+        // Load saved swipe progress for the current user.
         const swipeStatusDoc = await getDoc(
           doc(db, 'groups', groupId!, 'meetings', meetingId!, 'swipeStatus', memberId)
         );
@@ -77,7 +87,7 @@ export default function RecommendationsScreen() {
           setCurrentIndex(0);
         }
 
-        // Fetch recommendations normally
+        // Fetch recommendations normally.
         const recs = await fetchRecommendations(groupId!, meetingId!);
         setPlaces(recs);
       } catch (err: any) {
@@ -89,7 +99,7 @@ export default function RecommendationsScreen() {
     })();
   }, [groupId, meetingId]);
 
-  // B. Listen for swipeStatus changes
+  // B. Listen for swipeStatus changes for all members.
   useEffect(() => {
     if (!groupId || !meetingId) return;
     const unsub = onSnapshot(
@@ -115,12 +125,12 @@ export default function RecommendationsScreen() {
     return () => unsub();
   }, [groupId, meetingId, members]);
 
-  // C. When all are finished, check consensus and persist final recommendation.
+  // C. When all members are finished, check consensus and persist final recommendation.
   useEffect(() => {
     if (allFinished) {
       (async () => {
         const cons = await getConsensus(groupId!, meetingId!);
-        setChosen(cons.restaurantIds ? cons.restaurantIds[0] : null);
+        setConsensusData(cons);
         setWaiting(false);
         setFinished(true);
         await updateDoc(doc(db, 'groups', groupId!, 'meetings', meetingId!), {
@@ -131,7 +141,7 @@ export default function RecommendationsScreen() {
     }
   }, [allFinished, groupId, meetingId]);
 
-  // D. Mark user's swipe progress to Firestore.
+  // D. Save the current swipe index for this member.
   const updateSwipeProgress = async (index: number, finishedFlag: boolean = false) => {
     if (!groupId || !meetingId || !memberId) return;
     await setDoc(
@@ -141,7 +151,7 @@ export default function RecommendationsScreen() {
     );
   };
 
-  // E. Handler for a swipe.
+  // E. Handler for a swipe: record vote and update progress.
   const onSwipe = async (index: number, liked: boolean) => {
     const p = places[index];
     if (!p) return;
@@ -152,7 +162,7 @@ export default function RecommendationsScreen() {
         setCurrentIndex(nextIndex);
         await updateSwipeProgress(nextIndex);
       } else {
-        // Last card swiped
+        // When user swipes the last card.
         setFinished(true);
         await updateSwipeProgress(nextIndex, true);
         setWaiting(true);
@@ -161,19 +171,27 @@ export default function RecommendationsScreen() {
       console.warn('Vote error:', e);
     }
   };
-
-  // F. Conditional Rendering:
+  
+  // F. Conditionally render the UI.
   if (loading) {
     return (
+       <>
+         <Stack.Screen
+        options={{
+          title: 'Swipe to Decide',
+        }}
+      />
       <SafeAreaView style={s.center}>
         <ActivityIndicator size="large" color="#EA4080" />
       </SafeAreaView>
+      </>
     );
   }
 
-  // If the user finished but not all members, show a waiting screen.
+  // Show waiting state if the user has finished swiping but not all members.
   if (userFinished && !allFinished) {
     return (
+      
       <SafeAreaView style={s.center}>
         <Text style={s.resultText}>
           You have finished voting. Waiting for all group members...
@@ -185,15 +203,17 @@ export default function RecommendationsScreen() {
     );
   }
 
-  // If consensus is reached, display final recommendations aesthetically.
-  if (allFinished && chosen) {
-   const finalPlaces = places.filter((p) => p.id === chosen)
+  // If consensus is reached or if top-voted options exist.
+  if (allFinished && consensusData && consensusData.restaurantIds) {
+    const finalPlaces = places.filter((p) =>
+      consensusData.restaurantIds!.includes(p.id)
+    );
     return (
       <SafeAreaView style={s.finalContainer}>
         <Text style={s.finalHeader}>
-          {finalPlaces.length > 1
-            ? 'Top Voted Option(s):'
-            : 'Consensus Reached! Your Final Choice(s):'}
+          {consensusData.status === 'chosen'
+            ? 'Consensus Reached! Final Choice:'
+            : 'No unanimous choice — Top Voted Options:'}
         </Text>
         <ScrollView contentContainerStyle={s.finalList}>
           {finalPlaces.map((p) => (
@@ -207,21 +227,9 @@ export default function RecommendationsScreen() {
   // Otherwise, show the swipe deck.
   return (
     <>
-      {/* Add header configuration for the screen */}
-      <Stack.Screen
-        options={{
-          title: 'Swipe to Decide',
-          headerStyle: { backgroundColor: '#fff' },
-          headerTintColor: '#333',
-          headerTitleStyle: { fontWeight: 'bold', fontSize: 20 },
-        }}
-      />
       <SafeAreaView style={s.container}>
-        {/* Persistent Instructions */}
         <View style={s.instructionsContainer}>
-          <Text style={s.instructionsText}>
-            Swipe right for YES, left for NO
-          </Text>
+          <Text style={s.instructionsText}>Swipe right for YES, left for NO</Text>
         </View>
         <View style={s.swiperContainer}>
           <Swiper
@@ -285,8 +293,8 @@ export default function RecommendationsScreen() {
   );
 
   function consensusDataAvailable(): boolean {
-    // For now, we consider consensus data available if 'chosen' is not null.
-    return chosen !== null;
+    // We'll consider consensus data available if we have at least one restaurant ID in consensusData.restaurantIds.
+    return consensusData?.restaurantIds !== undefined && consensusData.restaurantIds.length > 0;
   }
 }
 
@@ -323,7 +331,7 @@ const s = StyleSheet.create({
     width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: -30,
+    marginTop: -30, // Adjust as needed to horizontally center
   },
   overlayLabel: {
     fontSize: 45,
@@ -392,7 +400,7 @@ const s = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     textAlign: 'center',
-    marginVertical: 10,
+    marginVertical: 20,
     color: '#333',
   },
   finalList: {

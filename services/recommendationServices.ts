@@ -78,7 +78,6 @@ async function fetchFoursquareByCoords(
       cuisines: [], // will be filled by OSM
       budget: mapFoursquarePriceToBudget(r.price?.tier),
       dietaryFlags: [],
-      image: undefined,
       categoryIcon,
     } as Place
   })
@@ -128,7 +127,6 @@ async function fetchFoursquareByText(
         cuisines: [],
         budget: mapFoursquarePriceToBudget(r.price?.tier),
         dietaryFlags: [],
-        image: undefined, // will be set by photo enrichment
         categoryIcon,
       } as Place
     })
@@ -254,9 +252,6 @@ export async function fetchRecommendations(
       const { dietaryFlags, cuisines } = await enrichWithOsmFlags(p.lat, p.lng);
       p.dietaryFlags = dietaryFlags;
       p.cuisines = cuisines;
-      const img = await fetchFoursquarePhoto(p.id);
-      console.log('Fetched photo for', p.name, img);
-      p.image = img;
     })
   );
 

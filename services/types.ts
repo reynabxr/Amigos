@@ -34,6 +34,5 @@ export interface Place {
   cuisines: string[]
   budget: string
   dietaryFlags: string[]
-  image?: string
   categoryIcon?: string;  // Foursquare category icon fallback
 }
