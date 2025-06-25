@@ -4,7 +4,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import type { Place } from '../services/types';
 
 const cuisineIconNames: Record<string, string> = {
-  Japanese: 'food-croissant',        // or 'noodles'
+  Japanese: 'food-croissant',        
   Chinese: 'noodles',
   Western: 'hamburger',
   Indian: 'food-variant',

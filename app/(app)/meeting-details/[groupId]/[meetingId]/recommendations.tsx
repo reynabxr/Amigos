@@ -34,7 +34,6 @@ export default function RecommendationsScreen() {
   const [places, setPlaces] = useState<Place[]>([]);
   const [loading, setLoading] = useState(true);
   const [finished, setFinished] = useState(false);
-  // Instead of a single chosen string, we now store consensus data with an array of restaurant IDs.
   const [consensusData, setConsensusData] = useState<{ status: 'none' | 'chosen' | 'top'; restaurantIds?: string[] } | null>(null);
   const [waiting, setWaiting] = useState(false);
   const [allFinished, setAllFinished] = useState(false);
@@ -57,11 +56,11 @@ export default function RecommendationsScreen() {
         if (!mSnap.exists()) throw new Error('Meeting not found');
         const mData = mSnap.data() as any;
 
-        // Load group members.
+        // load group members.
         const groupSnap = await getDoc(doc(db, 'groups', groupId!));
         setMembers(groupSnap.data()?.members || []);
 
-        // Check if a final recommendation is already set.
+        // check if a final recommendation is already set.
         if (mData.finalRecommendation) {
           setConsensusData({
             status: mData.finalConsensusStatus || 'chosen',
@@ -331,7 +330,7 @@ const s = StyleSheet.create({
     width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: -30, // Adjust as needed to horizontally center
+    marginTop: -30, 
   },
   overlayLabel: {
     fontSize: 45,
