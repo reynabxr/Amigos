@@ -214,8 +214,7 @@ export default function MeetingDetailsScreen() {
           style={styles.preferenceButton}   
           onPress={() =>
             router.push({
-              pathname:
-                "/meeting-details/[groupId]/[meetingId]/recommendations",
+              pathname: "/meeting-details/[groupId]/[meetingId]/recommendations" as any,
               params: { groupId, meetingId },
             })
           }
