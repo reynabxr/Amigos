@@ -4,7 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { collection, doc, getDoc, getDocs, onSnapshot } from 'firebase/firestore';
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, SafeAreaView, StyleSheet, Text, TouchableOpacity, View, ScrollView } from 'react-native';
 import { db } from '../../../../../services/firebaseConfig';
 
 export default function MeetingDetailsScreen() {
@@ -153,7 +153,8 @@ export default function MeetingDetailsScreen() {
             }}
         />
 
-      <TouchableOpacity
+      <ScrollView contentContainerStyle={styles.container}>
+        <TouchableOpacity
         onPress={() =>
           router.push({ pathname: "/meeting-edit/[groupId]/[meetingId]", params: { groupId, meetingId } })
           
@@ -163,8 +164,6 @@ export default function MeetingDetailsScreen() {
         <Ionicons name="create-outline" size={16} color="#fff" />
         <Text style={styles.editMeetingButtonText}>Edit</Text>
       </TouchableOpacity>
-
-      <View style={styles.container}>
         <Text style={styles.label}>Meeting Name</Text>
         <Text style={styles.value}>{meeting.name}</Text>
 
@@ -233,7 +232,7 @@ export default function MeetingDetailsScreen() {
           </LinearGradient>
         </TouchableOpacity>
 
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -288,6 +287,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     elevation: 4,
+    alignSelf: 'flex-end',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
