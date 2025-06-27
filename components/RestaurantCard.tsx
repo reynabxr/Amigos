@@ -23,7 +23,6 @@ const categoryIconNames: Record<string, string> = {
   'French Restaurant': 'eiffel-tower',
   'Italian Restaurant': 'pasta',
   'Seafood Restaurant': 'fish',
-  'Sandwich Spot': 'sandwich',
   'Fast Food Restaurant': 'hamburger',
   'Café': 'coffee',
   'Coffee Shop': 'coffee',
