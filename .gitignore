@@ -30,8 +30,9 @@ yarn-error.*
 .DS_Store
 *.pem
 
-# env files
+# api files
 .env*
+services/foursquareConfig.ts 
 
 # typescript
 *.tsbuildinfo
