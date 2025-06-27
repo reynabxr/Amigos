@@ -4,7 +4,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import type { Place } from '../services/types';
 
 const cuisineIconNames: Record<string, string> = {
-  Japanese: 'food-croissant',        // or 'noodles'
+  Japanese: 'food-croissant',
   Chinese: 'noodles',
   Western: 'hamburger',
   Indian: 'food-variant',
@@ -15,7 +15,7 @@ const cuisineIconNames: Record<string, string> = {
   Mediterranean: 'food-variant',
 };
 
-  // Foursquare categories:
+  // foursquare categories:
 const categoryIconNames: Record<string, string> = {
   'Ramen Restaurant': 'noodles',
   'Noodle Restaurant': 'noodles',
@@ -36,7 +36,7 @@ const categoryIconNames: Record<string, string> = {
 };
 
 export function RestaurantCard({ place }: { place: Place }) {
-  // Pick the first cuisine or fallback to category
+  // pick the first cuisine or fallback to category
   const cuisineOrCategory =
     (place.cuisines && place.cuisines.length > 0 && categoryIconNames[place.cuisines[0]]) ||
     categoryIconNames[place.category] ||
