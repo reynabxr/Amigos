@@ -19,6 +19,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+// @ts-ignore
 import Swiper from 'react-native-deck-swiper';
 import { RestaurantCard } from '../../../../../components/RestaurantCard';
 import { auth, db } from '../../../../../services/firebaseConfig';
@@ -233,9 +234,9 @@ export default function RecommendationsScreen() {
               swiperRef.current = ref;
             }}
             cards={places}
-            renderCard={(p) => (p ? <RestaurantCard place={p} /> : null)}
-            onSwipedLeft={(i) => onSwipe(i, false)}
-            onSwipedRight={(i) => onSwipe(i, true)}
+            renderCard={(p: Place) => (p ? <RestaurantCard place={p} /> : null)}
+            onSwipedLeft={(i: number) => onSwipe(i, false)}
+            onSwipedRight={(i: number) => onSwipe(i, true)}
             onSwipedAll={async () => {
               setFinished(true);
               await updateSwipeProgress(places.length, true);
