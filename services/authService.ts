@@ -27,7 +27,7 @@ interface AuthResponse {
 }
 
 // function to check if a username is already taken
-const isUsernameTaken = async (username: string): Promise<boolean> => {
+export const isUsernameTaken = async (username: string): Promise<boolean> => {
     const usersRef = collection(db, 'users');
     const q = query(usersRef, where('username', '==', username));
     const querySnapshot = await getDocs(q);
@@ -179,7 +179,9 @@ export const updateUsername = async (
         if (user) {
             await updateProfile(user, { displayName: newUsername });
         }
-
+        if (!user) {
+            return { success: false, error: 'No current user' };
+        }
         return { 
             success: true, 
             newUsername: newUsername,

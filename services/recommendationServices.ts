@@ -14,7 +14,7 @@ import {
 } from './foursquareConfig'
 import type { Place } from './types'
 
-function mapFoursquarePriceToBudget(priceLevel: number | undefined): string {
+export function mapFoursquarePriceToBudget(priceLevel: number | undefined): string {
   switch (priceLevel) {
     case 1: return '< $15'
     case 2: return '$15 - $30'
@@ -24,7 +24,7 @@ function mapFoursquarePriceToBudget(priceLevel: number | undefined): string {
   }
 }
 
-// Manual suggestions
+// manual suggestions
 export async function fetchManual(
   groupId: string,
   meetingId: string
@@ -134,7 +134,7 @@ async function fetchFoursquareByText(
 
 }
 
-// 3) OSM diet tags enrichment
+// OSM diet tags enrichment
 const OSM_URL = 'https://overpass-api.de/api/interpreter'
 const OSM_DIET_TAGS = [
   'vegetarian', 'vegan', 'halal', 'kosher', 'gluten_free', 'lactose_free',
@@ -180,7 +180,7 @@ export async function enrichWithOsmFlags(
   }
 }
 
-// 4) Group-wide dietary restrictions
+// group-wide dietary restrictions
 export async function fetchGroupRestrictions(
   groupId: string
 ): Promise<string[]> {
@@ -221,17 +221,17 @@ export async function fetchRecommendations(
   groupId: string,
   meetingId: string
 ): Promise<Place[]> {
-  // 1. Manual suggestions
+  // manual suggestions
   const manual = await fetchManual(groupId, meetingId);
 
-  // 2. Meeting doc for coords/text
+  // meeting doc for coords/text
   const mSnap = await getDoc(doc(db, 'groups', groupId, 'meetings', meetingId));
   const m = mSnap.exists() ? (mSnap.data() as any) : {};
   const lat = m.lat as number | undefined;
   const lng = m.lng as number | undefined;
   const txt = m.location as string | undefined;
 
-  // 3. Fetch Foursquare
+  // fetch Foursquare
   let fsqList: Place[] = [];
   try {
     if (typeof lat === 'number' && typeof lng === 'number') {
@@ -246,7 +246,7 @@ export async function fetchRecommendations(
     fsqList = await fetchFoursquareByCoords(1.3521, 103.8198); // fallback: Singapore center
   }
 
-  // 4. Enrich with OSM dietary tags and cuisines
+  // enrich with OSM dietary tags and cuisines
   await Promise.all(
     fsqList.map(async (p: Place) => {
       const { dietaryFlags, cuisines } = await enrichWithOsmFlags(p.lat, p.lng);
@@ -255,7 +255,7 @@ export async function fetchRecommendations(
     })
   );
 
-  // 5. Fetch group dietary restrictions and preferences
+  // fetch group dietary restrictions and preferences
   const reqs = await fetchGroupRestrictions(groupId); // e.g. ["Halal", "Vegetarian", "Vegan", ...]
   const prefsSnap = await getDocs(
     collection(db, 'groups', groupId, 'meetings', meetingId, 'preferences')
@@ -293,7 +293,7 @@ export async function fetchRecommendations(
   });
 }
 
-  // Soft tags (Vegetarian, Vegan, etc): ensure at least 2 of each if requested
+  // soft tags (Vegetarian, Vegan, etc): ensure at least 2 of each if requested
   const softTags = ['Vegetarian', 'Vegan', 'Kosher', 'Gluten-free', 'Lactose-free', 'Pescetarian', 'Nut-free', 'Egg-free', 'Soy-free'];
   const map = new Map<string, Place>();
   manual.forEach((p: Place) => map.set(p.id, p));
@@ -317,9 +317,9 @@ export async function fetchRecommendations(
   fsqList.forEach((p: Place) => map.set(p.id, p));
   let merged = Array.from(map.values());
 
-  // Sort by cuisine and budget preferences (prioritise, not filter)
+  // sort by cuisine and budget preferences (prioritise, not filter)
   merged.sort((a, b) => {
-    // Cuisine boost: match either Foursquare category or any OSM cuisine
+    // cuisine boost: match either Foursquare category or any OSM cuisine
     const aCuisineScore =
       topCuisines.some(
         (c) =>
@@ -336,10 +336,10 @@ export async function fetchRecommendations(
       )
         ? 1
         : 0;
-    // Budget boost
+    // budget boost
     const aBudgetScore = topBudgets.includes(a.budget) ? 1 : 0;
     const bBudgetScore = topBudgets.includes(b.budget) ? 1 : 0;
-    // Soft dietary boost
+    // soft dietary boost
     const aSoft = softTags.some((tag) => reqs.includes(tag) && a.dietaryFlags.includes(tag)) ? 1 : 0;
     const bSoft = softTags.some((tag) => reqs.includes(tag) && b.dietaryFlags.includes(tag)) ? 1 : 0;
     return (
@@ -354,7 +354,7 @@ export async function fetchRecommendations(
 }
 
 
-// 6) Record a swipe vote
+// record a swipe vote
 export async function recordVote(
   groupId: string,
   meetingId: string,
@@ -387,7 +387,7 @@ export async function getConsensus(
     vote ? tally[restaurantId].yes++ : tally[restaurantId].no++;
   });
 
-  // Check for unanimous votes
+  // check for unanimous votes
   const unanimousRestaurants = Object.entries(tally)
     .filter(([_, counts]) => counts.yes === total)
     .map(([id, _]) => id);
@@ -395,7 +395,7 @@ export async function getConsensus(
     return { status: 'chosen', restaurantIds: unanimousRestaurants };
   }
 
-  // Top-voted: find the maximum yes value, then return all IDs with that value.
+  // top-voted: find the maximum yes value, then return all IDs with that value.
   const sorted = Object.entries(tally).sort((a, b) => b[1].yes - a[1].yes);
   if (sorted.length > 0) {
     const topYes = sorted[0][1].yes;
