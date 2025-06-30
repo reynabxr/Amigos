@@ -14,7 +14,7 @@ import {
 } from './foursquareConfig'
 import type { Place } from './types'
 
-function mapFoursquarePriceToBudget(priceLevel: number | undefined): string {
+export function mapFoursquarePriceToBudget(priceLevel: number | undefined): string {
   switch (priceLevel) {
     case 1: return '< $15'
     case 2: return '$15 - $30'
