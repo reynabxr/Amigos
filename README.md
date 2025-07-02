@@ -43,10 +43,11 @@ Before you begin, ensure you have the following installed:
     npm install
     ```
 
+
 ### 🔥 Firebase Setup
 
 1. **Create a Firebase Project**
-   - Go to the [Firebase Console](https://console.firebase.google.com/).
+   - Go to [Firebase Console](https://console.firebase.google.com/).
    - Click **Create a Firebase Project** and follow the prompts to create a new project.
 
 2. **Add a Web App**
@@ -64,7 +65,26 @@ Before you begin, ensure you have the following installed:
      ```bash
      cp .env.example .env
      ```
-   - Paste the values you copied from Firebase into your `.env` file, matching the format given in .env.example:
+   - Paste the values you copied from Firebase into your `.env` file, matching the format given in .env.example. 
+
+
+### 🗺️ Foursquare Places API Setup
+
+1. **Create a Foursquare Developer Account**
+   - Go to [Foursquare Developers](https://foursquare.com/developers/home) and sign up for a new account or log in.
+
+2. **Find Your Bearer Token**
+   - Visit the [Foursquare Places API Reference](https://docs.foursquare.com/fsq-developers-places/reference/place-search).
+   - At the top right of the page under Credentials, you’ll see your **Bearer** token. 
+   - Copy the entire key.
+
+3. **Set Up Your Foursquare Config**
+   - In your project, copy `foursquareConfig.example.ts` to `foursquareConfig.ts`.
+     ```bash
+     cp services/foursquareConfig.example.ts services/foursquareConfig.ts
+     ```
+   - Open `foursquareConfig.ts` and paste your Bearer token, including the `Bearer` prefix.
+  
 
 ### 📱 Running the App on iOS simulator (Recommended)
 
