@@ -118,5 +118,13 @@ Before you begin, ensure you have the following installed:
 
 4. **Select your device**:
     - Select the device that you wish to run the app on. It should be the first one listed. 
-    - Press Enter and wait for the app to build.
-    - The app should automatically download and run on your device.
+    - Press Enter. Wait for the app to build and install on your device.
+
+5. **Trust the Developer Certificate**:
+   - On your iPhone, go to Settings > General > VPN & Device Management. 
+   - Under Developer App, click into your Apple ID.
+   - Tap "Trust" and confirm.
+
+6. **Run the App**:
+   - The Amigos app should now launch automatically on your iPhone.
+   - If not, find the app icon on your home screen and tap to open.
