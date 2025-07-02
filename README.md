@@ -43,6 +43,28 @@ Before you begin, ensure you have the following installed:
     npm install
     ```
 
+### 🔥 Firebase Setup
+
+1. **Create a Firebase Project**
+   - Go to the [Firebase Console](https://console.firebase.google.com/).
+   - Click **Create a Firebase Project** and follow the prompts to create a new project.
+
+2. **Add a Web App**
+   - In your Firebase project dashboard, click the **Web** icon (`</>`) to add a new web app.
+   - Enter an app nickname.
+   - Skip the "Set up Firebase Hosting" step.
+
+3. **Get Your Firebase Config**
+   - After registering your app, you’ll see the Firebase SDK snippet.
+   - Select the **npm** tab.
+   - Copy the values from the `firebaseConfig` object (e.g., `apiKey`, `authDomain`, etc.).
+
+4. **Set Up Your Environment Variables**
+   - In your project root, copy `.env.example` to `.env`:
+     ```bash
+     cp .env.example .env
+     ```
+   - Paste the values you copied from Firebase into your `.env` file, matching the format given in .env.example:
 
 ### 📱 Running the App on iOS simulator (Recommended)
 
