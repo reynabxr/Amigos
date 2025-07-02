@@ -100,7 +100,7 @@ Before you begin, ensure you have the following installed:
 ### 📱 Running the App on your iOS device (Alternative)
 
 1.  **Enable Developer Mode on your iPhone**:
-    - Navigate to Settings > Privacy & Security > Developer Mode > Enable. You will be prompted to restat your device and confirm the activation. 
+    - Navigate to Settings > Privacy & Security > Developer Mode > Enable. You will be prompted to restart your device and confirm the activation. 
     - Connect your iPhone to your MacBook and click "Trust". 
     - Open Xcode > Window > Devices and Simulators > Devices, and ensure that your device is connected.
 
@@ -109,7 +109,7 @@ Before you begin, ensure you have the following installed:
     npx expo run:ios --device
     ```
 
-2.  **Select your device**:
+3.  **Select your device**:
     - Select the device that you wish to run the app on. It should be the first one listed. 
     - Press Enter and wait for the app to build.
     - The app should automatically download and run on your device.
