@@ -108,7 +108,7 @@ Before you begin, ensure you have the following installed:
    - Open Xcode > Settings > Accounts and add your Apple Account (click the + button) if it's not already there.
    - In Finder, navigate to Amigos > ios and double-click the `Amigos.xcworkspace` file to open it in Xcode.
    - In Xcode, select "Amigos" in the left sidebar.
-   - Navigate to Targets > Signing & Capabilities and set Team to your Apple ID (Personal Team).
+   - Go to Targets > Signing & Capabilities and set Team to your Apple ID (Personal Team).
    - Make sure "Automatically manage signing" is checked.
 
 2. **Start the development server**: In the Amigos directory, run:
@@ -117,8 +117,8 @@ Before you begin, ensure you have the following installed:
     ```
 
 4. **Select your device**:
-    - Select the device that you wish to run the app on. It should be the first one listed. 
-    - Press Enter. Wait for the app to build and install on your device.
+    - When prompted, select your iPhone from the list (it should be the first one).
+    - Press Enter and wait for the app to build and install on your device.
 
 5. **Trust the Developer Certificate**:
    - On your iPhone, go to Settings > General > VPN & Device Management. 
