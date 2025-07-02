@@ -31,7 +31,7 @@ yarn-error.*
 *.pem
 
 # api files
-.env*
+.env
 services/foursquareConfig.ts 
 
 # typescript
