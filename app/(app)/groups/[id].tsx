@@ -2,7 +2,7 @@ import { FontAwesome5, Ionicons, MaterialCommunityIcons } from '@expo/vector-ico
 import { LinearGradient } from 'expo-linear-gradient';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, SafeAreaView, ScrollView, StyleSheet, Text, View, TouchableOpacity } from 'react-native';
+import { ActivityIndicator, SafeAreaView, ScrollView, StyleSheet, Text, View, TouchableOpacity, RefreshControl } from 'react-native';
 
 import { collection, doc, getDoc, getDocs, query, orderBy } from 'firebase/firestore';
 import { GroupData, IconSetType, availableIcons, getIconSetComponent } from '.';
@@ -15,6 +15,7 @@ export default function GroupDetailsScreen() {
   const [group, setGroup] = useState<GroupData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [memberDisplayNames, setMemberDisplayNames] = useState<{ [uid: string]: string }>({});
+  const [refreshing, setRefreshing] = useState(false);
 
   const handleManageGroupPress = useCallback(() => {
     if (group?.id) {
@@ -114,16 +115,55 @@ export default function GroupDetailsScreen() {
           ...data,
         };
       });
-      const upcomingMeetings = meetingsList.filter(meeting => {
-        const meetingTime = meeting.date?.toDate 
-        ? meeting.date.toDate().getTime() 
-        : new Date(meeting.date).getTime();
-      return meetingTime > now;
-      });
-      setMeetings(upcomingMeetings);
+      setMeetings(meetingsList);
     };
     fetchMeetings();
   }, [id]);
+
+  // pull to refresh
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    if (id) {
+      try {
+        const docRef = doc(db, 'groups', id);
+        const docSnap = await getDoc(docRef);
+
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          const fetchedGroup: GroupData = {
+            id: docSnap.id,
+            name: data.name,
+            members: data.members || [],
+            iconType: data.iconType || 'vector',
+            iconName: data.iconName,
+            iconColor: data.iconColor,
+            iconSource: data.iconSource,
+            ownerId: data.ownerId,
+            createdAt: data.createdAt,
+            iconSet: getIconSetComponent(data.iconName),
+          };
+          setGroup(fetchedGroup);
+          await fetchMemberDisplayNames(fetchedGroup.members);
+        }
+
+        const meetingsRef = collection(db, 'groups', id, 'meetings');
+        const meetingsQuery = query(meetingsRef, orderBy('date', 'asc'));
+        const snapshot = await getDocs(meetingsQuery);
+        const meetingsList: Meeting[] = snapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            name: data.name,
+            date: data.date,
+            ...data,
+          };
+        });
+        setMeetings(meetingsList);
+      } catch (e) {
+      }
+    }
+    setRefreshing(false);
+  }, [id, fetchMemberDisplayNames]);
 
   if (isLoading) {
     return (
@@ -150,7 +190,9 @@ export default function GroupDetailsScreen() {
     <SafeAreaView style={styles.container}>
       <Stack.Screen options={{ title: group.name }} />
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView 
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} /> } >
         <View style={styles.header}>
           <View style={styles.iconContainer}>
             {group.iconType === 'image' && group.iconSource && (
