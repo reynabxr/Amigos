@@ -330,7 +330,6 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: -30, 
-    marginTop: -30,
   },
   overlayLabel: {
     fontSize: 45,
