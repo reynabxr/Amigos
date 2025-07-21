@@ -1,6 +1,6 @@
 import { Timestamp } from 'firebase/firestore'
 
-// A suggestion manually added by a user
+// suggestion manually added by a user
 export interface ManualSuggestion {
   id?: string
   name: string
@@ -10,22 +10,22 @@ export interface ManualSuggestion {
   category: string
   budget: string
   dietaryFlags: string[]
-  suggestedBy: string    // UID of suggester
+  suggestedBy: string // UID of suggester
   createdAt: Timestamp
 }
 
-// A vote record
+// vote record
 export interface Vote {
-  id?: string            // "{memberId}_{restaurantId}"
+  id?: string // "{memberId}_{restaurantId}"
   memberId: string
   restaurantId: string
   vote: boolean
   updatedAt: Timestamp
 }
 
-// The “Place” that will be swiped on
+// the place that will be swiped on
 export interface Place {
-  id: string             // fsq_place_id or manual id
+  id: string // fsq_place_id or manual id
   name: string
   address: string
   lat: number
@@ -34,5 +34,5 @@ export interface Place {
   cuisines: string[]
   budget: string
   dietaryFlags: string[]
-  categoryIcon?: string;  // Foursquare category icon fallback
+  categoryIcon?: string; // Foursquare category icon fallback
 }

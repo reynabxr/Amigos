@@ -19,6 +19,7 @@ import {
   View
 } from 'react-native';
 import { auth, db } from '../../../../services/firebaseConfig';
+import { FSQ_API_VERSION, FSQ_TOKEN } from '../../../../services/foursquareConfig';
 
 export default function CreateMeetingScreen() {
   const router = useRouter();
@@ -102,8 +103,8 @@ export default function CreateMeetingScreen() {
         method: 'GET',
         headers: {
           accept: 'application/json',
-          'X-Places-Api-Version': '2025-06-17',
-          authorization: 'Bearer 0IVYPELNY4LNMALBKREA520UP1HFILQNEAGKPLHLIRPJKOJ0'
+          'X-Places-Api-Version': FSQ_API_VERSION,
+          authorization: FSQ_TOKEN
         }
       };
 

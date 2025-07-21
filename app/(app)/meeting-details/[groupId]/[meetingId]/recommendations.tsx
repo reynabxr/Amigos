@@ -40,13 +40,10 @@ export default function RecommendationsScreen() {
   const [members, setMembers] = useState<string[]>([]);
   const [finishedMembers, setFinishedMembers] = useState<string[]>([]);
   const [userFinished, setUserFinished] = useState<boolean>(false);
-  // Save the current swipe index so that a user can resume.
-  const [currentIndex, setCurrentIndex] = useState<number>(0);
+  const [currentIndex, setCurrentIndex] = useState<number>(0); // save the current swipe index so that a user can resume
   const swiperRef = useRef<Swiper<Place> | null>(null);
   const memberId = auth.currentUser!.uid;
 
-  // A. On component mount, load meeting doc, group member info, final recommendation (if exists),
-  // and saved swipe progress.
   useEffect(() => {
     (async () => {
       setLoading(true);
@@ -57,24 +54,26 @@ export default function RecommendationsScreen() {
         const mData = mSnap.data() as any;
 
         // load group members.
+        // load group members
         const groupSnap = await getDoc(doc(db, 'groups', groupId!));
         setMembers(groupSnap.data()?.members || []);
 
         // check if a final recommendation is already set.
+        // check if a final recommendation is already set
         if (mData.finalRecommendation) {
           setConsensusData({
             status: mData.finalConsensusStatus || 'chosen',
             restaurantIds: [mData.finalRecommendation],
           });
           setFinished(true);
-          // Even if final is reached, fetch recommendations to display the final cards.
+          // even if final is reached, fetch recommendations to display the final cards
           const recs = await fetchRecommendations(groupId!, meetingId!);
           setPlaces(recs);
           setLoading(false);
           return;
         }
 
-        // Load saved swipe progress for the current user.
+        // load saved swipe progress for the current user
         const swipeStatusDoc = await getDoc(
           doc(db, 'groups', groupId!, 'meetings', meetingId!, 'swipeStatus', memberId)
         );
@@ -86,7 +85,7 @@ export default function RecommendationsScreen() {
           setCurrentIndex(0);
         }
 
-        // Fetch recommendations normally.
+        // fetch recommendations normally
         const recs = await fetchRecommendations(groupId!, meetingId!);
         setPlaces(recs);
       } catch (err: any) {
@@ -98,7 +97,7 @@ export default function RecommendationsScreen() {
     })();
   }, [groupId, meetingId]);
 
-  // B. Listen for swipeStatus changes for all members.
+  // listen for swipeStatus changes for all members
   useEffect(() => {
     if (!groupId || !meetingId) return;
     const unsub = onSnapshot(
@@ -124,7 +123,7 @@ export default function RecommendationsScreen() {
     return () => unsub();
   }, [groupId, meetingId, members]);
 
-  // C. When all members are finished, check consensus and persist final recommendation.
+  // when all members are finished, check consensus and persist final recommendation
   useEffect(() => {
     if (allFinished) {
       (async () => {
@@ -140,7 +139,7 @@ export default function RecommendationsScreen() {
     }
   }, [allFinished, groupId, meetingId]);
 
-  // D. Save the current swipe index for this member.
+  // save the current swipe index for this member
   const updateSwipeProgress = async (index: number, finishedFlag: boolean = false) => {
     if (!groupId || !meetingId || !memberId) return;
     await setDoc(
@@ -150,7 +149,7 @@ export default function RecommendationsScreen() {
     );
   };
 
-  // E. Handler for a swipe: record vote and update progress.
+  // record vote and update progress
   const onSwipe = async (index: number, liked: boolean) => {
     const p = places[index];
     if (!p) return;
@@ -161,7 +160,7 @@ export default function RecommendationsScreen() {
         setCurrentIndex(nextIndex);
         await updateSwipeProgress(nextIndex);
       } else {
-        // When user swipes the last card.
+        // when user swipes the last card
         setFinished(true);
         await updateSwipeProgress(nextIndex, true);
         setWaiting(true);
@@ -171,7 +170,7 @@ export default function RecommendationsScreen() {
     }
   };
   
-  // F. Conditionally render the UI.
+  // conditionally render the UI
   if (loading) {
     return (
        <>
@@ -187,7 +186,7 @@ export default function RecommendationsScreen() {
     );
   }
 
-  // Show waiting state if the user has finished swiping but not all members.
+  // show waiting state if the user has finished swiping but not all members
   if (userFinished && !allFinished) {
     return (
       
@@ -202,7 +201,7 @@ export default function RecommendationsScreen() {
     );
   }
 
-  // If consensus is reached or if top-voted options exist.
+  // if consensus is reached or if top-voted options exist
   if (allFinished && consensusData && consensusData.restaurantIds) {
     const finalPlaces = places.filter((p) =>
       consensusData.restaurantIds!.includes(p.id)
@@ -223,7 +222,7 @@ export default function RecommendationsScreen() {
     );
   }
 
-  // Otherwise, show the swipe deck.
+  // otherwise, show the swipe deck
   return (
     <>
       <SafeAreaView style={s.container}>
@@ -236,9 +235,9 @@ export default function RecommendationsScreen() {
               swiperRef.current = ref;
             }}
             cards={places}
-            renderCard={(p) => (p ? <RestaurantCard place={p} /> : null)}
-            onSwipedLeft={(i) => onSwipe(i, false)}
-            onSwipedRight={(i) => onSwipe(i, true)}
+            renderCard={(p: Place) => (p ? <RestaurantCard place={p} /> : null)}
+            onSwipedLeft={(i: number) => onSwipe(i, false)}
+            onSwipedRight={(i: number) => onSwipe(i, true)}
             onSwipedAll={async () => {
               setFinished(true);
               await updateSwipeProgress(places.length, true);
@@ -292,7 +291,7 @@ export default function RecommendationsScreen() {
   );
 
   function consensusDataAvailable(): boolean {
-    // We'll consider consensus data available if we have at least one restaurant ID in consensusData.restaurantIds.
+    // consider consensus data available if we have at least one restaurant ID in consensusData.restaurantIds
     return consensusData?.restaurantIds !== undefined && consensusData.restaurantIds.length > 0;
   }
 }
@@ -331,6 +330,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: -30, 
+    marginTop: -30,
   },
   overlayLabel: {
     fontSize: 45,
