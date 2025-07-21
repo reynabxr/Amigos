@@ -4,7 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { collection, doc, getDoc, getDocs, onSnapshot } from 'firebase/firestore';
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, SafeAreaView, StyleSheet, Text, TouchableOpacity, View, ScrollView } from 'react-native';
+import { ActivityIndicator, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { db } from '../../../../../services/firebaseConfig';
 
 export default function MeetingDetailsScreen() {
@@ -209,6 +209,26 @@ export default function MeetingDetailsScreen() {
             <Text style={styles.preferenceButtonText}>Set Preferences</Text>
           </LinearGradient>
         </TouchableOpacity>
+        <TouchableOpacity
+  style={styles.preferenceButton}
+  onPress={() =>
+    router.push({
+      pathname: '/meeting-details/[groupId]/[meetingId]/manual-recommendations' as any,
+      params: { groupId, meetingId },
+    })
+  }
+  activeOpacity={0.7}
+>
+  <LinearGradient
+    colors={['#FF8800', '#FFB300']} 
+    start={{ x: 0, y: 0.5 }}
+    end={{ x: 1, y: 0.5 }}
+    style={styles.gradient}
+  >
+    <Ionicons name="add-outline" size={20} color="#fff" />
+    <Text style={styles.preferenceButtonText}>Suggest a Restaurant</Text>
+  </LinearGradient>
+</TouchableOpacity>
         <TouchableOpacity
           style={styles.preferenceButton}   
           onPress={() =>
