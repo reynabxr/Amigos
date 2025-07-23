@@ -1,6 +1,6 @@
-import { Ionicons } from '@expo/vector-icons'; // For example icons
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { collection, onSnapshot, orderBy, query, where } from 'firebase/firestore';
+import { collection, limit, onSnapshot, orderBy, query, where, } from 'firebase/firestore';
 import React, { useEffect, useState, } from 'react';
 import {
   ActivityIndicator,
@@ -15,12 +15,6 @@ import {
 } from 'react-native';
 import { auth, db } from '../../services/firebaseConfig';
 
-const placesEatenData = [
-  { id: '1', name: 'Pizza Hut', lastVisited: 'Last week', rating: 4, image: 'https://via.placeholder.com/100x80.png?text=Pizza' },
-  { id: '2', name: 'Sushi Express', lastVisited: '2 weeks ago', rating: 5, image: 'https://via.placeholder.com/100x80.png?text=Sushi' },
-  { id: '3', name: 'Burger King', lastVisited: 'Last month', rating: 3, image: 'https://via.placeholder.com/100x80.png?text=Burger' },
-];
-
 const SectionCard = ({ title, children }: { title: string, children: React.ReactNode }) => (
   <View style={styles.sectionCard}>
     <Text style={styles.sectionTitle}>{title}</Text>
@@ -28,13 +22,17 @@ const SectionCard = ({ title, children }: { title: string, children: React.React
   </View>
 );
 
-const PlaceItem = ({ item }: { item: typeof placesEatenData[0] }) => (
-  <TouchableOpacity style={styles.placeItem}>
-    <Image source={{ uri: item.image }} style={styles.placeImage} />
+const PlaceItem = ({ item, onPress }: { item: any, onPress: () => void }) => (
+  <TouchableOpacity style={styles.placeItem} onPress={onPress}>
+    <Image source={{ uri: item.image || 'https://via.placeholder.com/100x80.png?text=Food' }} style={styles.placeImage} />
     <View style={styles.placeDetails}>
       <Text style={styles.placeName}>{item.name}</Text>
-      <Text style={styles.placeInfo}>Last visited: {item.lastVisited}</Text>
-      <Text style={styles.placeInfo}>Rating: {'⭐'.repeat(item.rating)}</Text>
+      <Text style={styles.placeInfo}>
+        Last visited: {item.lastVisited ? new Date(item.lastVisited).toLocaleDateString() : '—'}
+      </Text>
+      <Text style={styles.placeInfo}>
+        Rating: {item.rating ? '⭐'.repeat(item.rating) : 'Not rated'}
+      </Text>
     </View>
     <Ionicons name="chevron-forward" size={24} color="#ccc" />
   </TouchableOpacity>
@@ -42,6 +40,34 @@ const PlaceItem = ({ item }: { item: typeof placesEatenData[0] }) => (
 
 
 export default function HomeScreen() {
+  const [placesEaten, setPlacesEaten] = useState<any[]>([]);
+const [loadingPlaces, setLoadingPlaces] = useState(true);
+
+useEffect(() => {
+  const user = auth.currentUser;
+  if (!user) {
+    setPlacesEaten([]);
+    setLoadingPlaces(false);
+    return;
+  }
+  setLoadingPlaces(true);
+  const placesRef = collection(db, 'users', user.uid, 'visitedPlaces');
+  const q = query(placesRef, orderBy('visitedAt', 'desc'), limit(5));
+  const unsub = onSnapshot(q, (snap) => {
+    setPlacesEaten(
+      snap.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        lastVisited: doc.data().visitedAt?.toDate
+          ? doc.data().visitedAt.toDate()
+          : new Date(doc.data().visitedAt),
+      }))
+    );
+    setLoadingPlaces(false);
+  });
+  return () => unsub();
+}, []);
+
   const [meetings, setMeetings] = useState<any[]>([]);
   const [loadingMeetings, setLoadingMeetings] = useState(true);
   const router = useRouter();
@@ -162,15 +188,23 @@ export default function HomeScreen() {
 
         {/* Places Eaten Section */}
         <SectionCard title="Places I've Eaten At">
-          {placesEatenData.length > 0 ? (
-            placesEatenData.map(item => <PlaceItem key={item.id} item={item} />)
-          ) : (
-            <Text style={styles.emptyText}>No places recorded yet.</Text>
-          )}
-          <TouchableOpacity style={styles.seeAllButton}>
-            <Text style={styles.seeAllText}>See All Places</Text>
-          </TouchableOpacity>
-        </SectionCard>
+  {loadingPlaces ? (
+    <ActivityIndicator size="large" color="#EA4080" />
+  ) : placesEaten.length > 0 ? (
+    placesEaten.map(item => (
+      <PlaceItem
+        key={item.id}
+        item={item}
+        onPress={() => router.push({ pathname: '/places/[placeId]' as any, params: { placeId: item.id } })}
+      />
+    ))
+  ) : (
+    <Text style={styles.emptyText}>No places recorded yet.</Text>
+  )}
+  <TouchableOpacity style={styles.seeAllButton} onPress={() => router.push('/see-all-places' as any)}>
+    <Text style={styles.seeAllText}>See All Places</Text>
+  </TouchableOpacity>
+</SectionCard>
       </ScrollView>
     </SafeAreaView>
   );

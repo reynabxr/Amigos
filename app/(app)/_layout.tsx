@@ -1,11 +1,9 @@
 import { FontAwesome, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Tabs, useRouter } from 'expo-router';
-import React, { useEffect, useRef } from 'react';
 import { doc, onSnapshot } from 'firebase/firestore';
-import { auth, db } from '../../services/firebaseConfig';
-import { User } from '@firebase/auth';
-import { Slot } from "expo-router";
+import React, { useEffect, useRef } from 'react';
 import AuthState from "../../components/AuthState";
+import { auth, db } from '../../services/firebaseConfig';
 
 export default function AppTabLayout() {
   const router = useRouter();
@@ -100,6 +98,20 @@ export default function AppTabLayout() {
         />
         <Tabs.Screen
           name="see-all-meetings"
+          options={{
+            href: null,
+            headerShown: true,
+          }}
+        />
+          <Tabs.Screen
+          name="see-all-places"
+          options={{
+            href: null,
+            headerShown: true,
+          }}
+        />
+          <Tabs.Screen
+          name="places/[placeId]"
           options={{
             href: null,
             headerShown: true,
