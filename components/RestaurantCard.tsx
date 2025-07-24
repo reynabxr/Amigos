@@ -35,10 +35,10 @@ const categoryIconNames: Record<string, string> = {
 };
 
 export function RestaurantCard({ place }: { place: Place }) {
-  // pick the first cuisine or fallback to category
+  // pick category or fallback to the first cuisine 
   const cuisineOrCategory =
-    (place.cuisines && place.cuisines.length > 0 && categoryIconNames[place.cuisines[0]]) ||
     categoryIconNames[place.category] ||
+    (place.cuisines && place.cuisines.length > 0 && categoryIconNames[place.cuisines[0]]) ||
     'silverware-fork-knife'; // default fallback
 
   return (

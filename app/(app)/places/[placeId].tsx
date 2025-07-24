@@ -1,111 +1,124 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Stack, useLocalSearchParams } from 'expo-router';
-import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Image,
   SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
+  View,
 } from 'react-native';
+import { RestaurantCard } from '../../../components/RestaurantCard';
+import { StarRating } from '../../../components/StarRating';
 import { auth, db } from '../../../services/firebaseConfig';
+import type { Place } from '../../../services/types';
 
-const StarRating = ({ rating, onRate }: { rating: number; onRate: (newRating: number) => void }) => {
-  return (
-    <View style={styles.starContainer}>
-      {[1, 2, 3, 4, 5].map((star) => (
-        <TouchableOpacity key={star} onPress={() => onRate(star)}>
-          <Ionicons
-            name={star <= rating ? 'star' : 'star-outline'}
-            size={40}
-            color={star <= rating ? '#FFC107' : '#ccc'}
-          />
-        </TouchableOpacity>
-      ))}
-    </View>
-  );
-};
+export default function PlaceDetailScreen() {
+  const { placeId, placeData } = useLocalSearchParams<{ placeId: string, placeData?: string }>();
+  
+  const [place, setPlace] = useState<Place | null>(null);
+  const [userRating, setUserRating] = useState(0);
+  const [loadingRating, setLoadingRating] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
 
-export default function PlaceDetailsScreen() {
-  const { placeId } = useLocalSearchParams<{ placeId: string }>();
-  const [place, setPlace] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const user = auth.currentUser;
-
+  // Step 1: Parse the place data passed from the previous screen
   useEffect(() => {
-    if (!user || !placeId) {
-      setLoading(false);
+    if (placeData) {
+      try {
+        const parsedPlace = JSON.parse(placeData);
+        if (typeof parsedPlace.visitedAt === 'number') {
+            parsedPlace.visitedAt = new Date(parsedPlace.visitedAt);
+        }
+        setPlace(parsedPlace);
+      } catch (e) {
+        console.error("Failed to parse place data:", e);
+      }
+    }
+  }, [placeData]);
+
+  // Step 2: Listen for the user's rating for this specific place
+  useEffect(() => {
+    if (!placeId || !auth.currentUser) {
+      setLoadingRating(false);
       return;
     }
-    const placeDocRef = doc(db, 'users', user.uid, 'visitedPlaces', placeId);
-
-    const unsubscribe = onSnapshot(placeDocRef, (docSnap) => {
+    
+    setLoadingRating(true);
+    const ratingRef = doc(db, 'users', auth.currentUser.uid, 'ratings', placeId);
+    
+    const unsubscribe = onSnapshot(ratingRef, (docSnap) => {
       if (docSnap.exists()) {
-        setPlace({ id: docSnap.id, ...docSnap.data() });
+        setUserRating(docSnap.data().rating);
       } else {
-        setPlace(null);
-        Alert.alert('Error', 'This place could not be found.');
+        setUserRating(0); // No rating exists yet
       }
-      setLoading(false);
+      setLoadingRating(false);
     });
 
-    return () => unsubscribe();
-  }, [user, placeId]);
+    return () => unsubscribe(); // Cleanup listener on unmount
+  }, [placeId]);
 
-  const handleRatePlace = async (newRating: number) => {
-    if (!user || !placeId || isSubmitting) return;
+  // Step 3: Function to handle saving a new rating
+  const handleRatePlace = async (rating: number) => {
+    if (!placeId || !auth.currentUser || isSaving) return;
 
-    setIsSubmitting(true);
-    const placeDocRef = doc(db, 'users', user.uid, 'visitedPlaces', placeId);
-
+    setIsSaving(true);
     try {
-      await updateDoc(placeDocRef, {
-        rating: newRating,
-      });
-      // The onSnapshot listener will automatically update the UI
+      const ratingRef = doc(db, 'users', auth.currentUser.uid, 'ratings', placeId);
+      await setDoc(ratingRef, {
+        placeId: placeId,
+        rating: rating,
+        updatedAt: new Date(),
+      }, { merge: true }); // Use merge to avoid overwriting other fields
+      
+      Alert.alert('Success', 'Your rating has been saved!');
     } catch (error) {
-      console.error('Failed to update rating:', error);
+      console.error("Error saving rating:", error);
       Alert.alert('Error', 'Could not save your rating.');
     } finally {
-      setIsSubmitting(false);
+      setIsSaving(false);
     }
   };
 
-  if (loading) {
-    return <ActivityIndicator size="large" color="#EA4080" style={{ flex: 1 }} />;
-  }
-
   if (!place) {
     return (
-      <SafeAreaView style={styles.container}>
-        <Text>Place not found.</Text>
-      </SafeAreaView>
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color="#EA4080" />
+        <Text>Loading place details...</Text>
+      </View>
     );
   }
-  
-  return (
-    <SafeAreaView style={styles.container}>
-      <Stack.Screen options={{ title: place.name || 'Place Details' }} />
-      <ScrollView>
-        <Image source={{ uri: place.image || 'https://via.placeholder.com/400x200.png?text=Food' }} style={styles.headerImage} />
-        <View style={styles.content}>
-          <Text style={styles.placeName}>{place.name}</Text>
-          <Text style={styles.placeAddress}>{place.address}</Text>
-          <Text style={styles.visitedDate}>
-            Visited on: {new Date(place.visitedAt.seconds * 1000).toLocaleDateString()}
-          </Text>
 
-          <View style={styles.ratingSection}>
-            <Text style={styles.ratingLabel}>Your Rating</Text>
-            <StarRating rating={place.rating || 0} onRate={handleRatePlace} />
-            {isSubmitting && <ActivityIndicator style={{ marginTop: 10 }} />}
-          </View>
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <Stack.Screen
+        options={{
+          title: place.name || 'Place Details',
+          headerLeft: () => (
+            <TouchableOpacity
+              onPress={() => router.back()} // Navigates to the previous screen
+              style={{ marginLeft: 20 }}
+            >
+              <Ionicons name="arrow-back" size={24} color="#EA4080" />
+            </TouchableOpacity>
+          ),
+        }}
+      />
+      <ScrollView contentContainerStyle={styles.container}>
+        <RestaurantCard place={place} />
+
+        <View style={styles.ratingSection}>
+          <Text style={styles.ratingHeader}>Your Rating</Text>
+          {loadingRating ? (
+            <ActivityIndicator color="#EA4080" />
+          ) : (
+            <StarRating rating={userRating} onRate={handleRatePlace} size={40} />
+          )}
+          {isSaving && <ActivityIndicator style={{ marginTop: 10 }} size="small" />}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -113,19 +126,28 @@ export default function PlaceDetailsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  headerImage: { width: '100%', height: 250 },
-  content: { padding: 20 },
-  placeName: { fontSize: 28, fontWeight: 'bold', color: '#333' },
-  placeAddress: { fontSize: 16, color: '#666', marginTop: 8 },
-  visitedDate: { fontSize: 14, color: '#888', marginTop: 12, fontStyle: 'italic' },
+  safeArea: { flex: 1, backgroundColor: '#f4f4f8' },
+  container: { paddingBottom: 40 },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   ratingSection: {
-    marginTop: 30,
-    paddingTop: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
-    alignItems: 'center',
+      backgroundColor: 'white',
+      paddingVertical: 20,
+      paddingHorizontal: 15,
+      borderRadius: 18,
+      alignItems: 'center',
+      marginTop: -50, 
+      marginHorizontal: 20,
+      zIndex: 10,
+      shadowColor: '#000',
+      shadowOpacity: 0.1,
+      shadowOffset: { width: 0, height: 4 },
+      shadowRadius: 10,
+      elevation: 5,
   },
-  ratingLabel: { fontSize: 20, fontWeight: '600', color: '#444', marginBottom: 15 },
-  starContainer: { flexDirection: 'row', justifyContent: 'center', gap: 10 },
+  ratingHeader: {
+      fontSize: 18,
+      fontWeight: '600',
+      color: '#333',
+      marginBottom: 15,
+  },
 });

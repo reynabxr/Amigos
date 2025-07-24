@@ -135,7 +135,7 @@ const handleSelectAndConfirm = async (item: any) => {
             <View style={styles.resultsDropdown}>
               {fsqResults.map(item => (
                 <TouchableOpacity
-                  key={item.fsq_id}
+                  key={item.fsq_place_id || item.fsq_id || item.id}
                   style={styles.resultItem}
                   onPress={() => handleSelectAndConfirm(item)}
                 >
