@@ -137,8 +137,6 @@ export default function ManualSuggestionsScreen() {
         contentContainerStyle={styles.container}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.title}>Suggest a Restaurant</Text>
-
         {/* Search Section */}
       <View style={styles.section}>
   <Text style={styles.label}>Search for a place</Text>
