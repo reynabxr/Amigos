@@ -1,0 +1,28 @@
+// In functions/tsconfig.json
+
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "noImplicitReturns": true,
+    "noUnusedLocals": true,
+    "outDir": "lib",
+    "sourceMap": true,
+    "strict": true,
+    "target": "es2021",
+    
+    // --- THIS IS THE FIX ---
+    // 1. Explicitly set the library to only include core ES features.
+    //    This PREVENTS it from loading conflicting browser/DOM types.
+    "lib": [
+      "es2021"
+    ],
+    // 2. This tells the compiler not to worry about type errors
+    //    coming from third-party libraries in node_modules.
+    "skipLibCheck": true
+    // -----------------------
+  },
+  "compileOnSave": true,
+  "include": [
+    "src"
+  ]
+}
