@@ -1,4 +1,4 @@
-import * as Device from 'expo-device'; // This will now be found
+import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import { useRouter } from 'expo-router';
 import { arrayUnion, doc, setDoc } from 'firebase/firestore';
@@ -6,11 +6,10 @@ import { useEffect } from 'react';
 import { Platform } from 'react-native';
 import { auth, db } from './firebaseConfig';
 
-// --- THIS IS THE FIX for the NotificationBehavior error ---
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
-    shouldPlaySound: true, // It's good practice to allow sound
+    shouldPlaySound: true, 
     shouldSetBadge: false,
     shouldShowBanner: true, // for the banner that drops down
     shouldShowList: true,   // for showing it in the notification center
@@ -26,12 +25,10 @@ export const usePushNotifications = () => {
     const responseListener = Notifications.addNotificationResponseReceivedListener(response => {
       const data = response.notification.request.content.data;
 
-      // --- THIS IS THE FIX for the groupId/meetingId error ---
       // Safely check if the data exists and is the correct type (string)
       if (data && typeof data.groupId === 'string' && typeof data.meetingId === 'string') {
         const { groupId, meetingId } = data;
-        
-        // Now that TypeScript knows they are strings, this is safe
+
         router.push({
           pathname: '/meeting-details/[groupId]/[meetingId]',
           params: { groupId, meetingId },
@@ -65,7 +62,6 @@ async function registerForPushNotificationsAsync() {
   }
 
   try {
-    // --- IMPORTANT: Ensure you have this environment variable ---
     const projectId = process.env.EXPO_PUBLIC_EAS_PROJECT_ID;
     if (!projectId) {
         throw new Error("EXPO_PUBLIC_EAS_PROJECT_ID is not set in your environment variables.");

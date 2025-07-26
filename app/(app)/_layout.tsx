@@ -4,8 +4,10 @@ import { doc, onSnapshot } from 'firebase/firestore';
 import React, { useEffect, useRef } from 'react';
 import AuthState from "../../components/AuthState";
 import { auth, db } from '../../services/firebaseConfig';
+import { usePushNotifications } from '../../services/usePushNotifications';
 
 export default function AppTabLayout() {
+  usePushNotifications();
   const router = useRouter();
   const onboardingCheckCompleted = useRef(false)
 
