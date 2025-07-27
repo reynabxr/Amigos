@@ -1,6 +1,15 @@
-import { Ionicons } from '@expo/vector-icons'; // For example icons
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { collection, onSnapshot, orderBy, query, where } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  onSnapshot,
+  orderBy,
+  query,
+  where
+} from 'firebase/firestore';
 import React, { useEffect, useState, } from 'react';
 import {
   ActivityIndicator,
@@ -13,35 +22,86 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { StarRating } from '../../components/StarRating';
 import { auth, db } from '../../services/firebaseConfig';
 
-const placesEatenData = [
-  { id: '1', name: 'Pizza Hut', lastVisited: 'Last week', rating: 4, image: 'https://via.placeholder.com/100x80.png?text=Pizza' },
-  { id: '2', name: 'Sushi Express', lastVisited: '2 weeks ago', rating: 5, image: 'https://via.placeholder.com/100x80.png?text=Sushi' },
-  { id: '3', name: 'Burger King', lastVisited: 'Last month', rating: 3, image: 'https://via.placeholder.com/100x80.png?text=Burger' },
-];
+const cuisineIconNames: Record<string, string> = {
+  Japanese: 'food-croissant',        
+  Chinese: 'noodles',
+  Western: 'hamburger',
+  Indian: 'food-variant',
+  Malay: 'rice',
+  Korean: 'food',
+  Thai: 'noodles',
+  Vietnamese: 'noodles',
+  Mediterranean: 'food-variant',
+};
+
+const categoryIconNames: Record<string, string> = {
+  'Ramen Restaurant': 'noodles',
+  'Noodle Restaurant': 'noodles',
+  'Japanese Restaurant': 'noodles',
+  'French Restaurant': 'eiffel-tower',
+  'Italian Restaurant': 'pasta',
+  'Seafood Restaurant': 'fish',
+  'Fast Food Restaurant': 'hamburger',
+  'Café': 'coffee',
+  'Coffee Shop': 'coffee',
+  'Salad Restaurant': 'food-apple',
+  'Pizza Place': 'pizza',
+  'Bakery': 'bread-slice',
+  'Steakhouse': 'food-steak',
+  'Bar': 'glass-cocktail',
+  'Soup Spot': 'food-apple',
+};
 
 const SectionCard = ({ title, children }: { title: string, children: React.ReactNode }) => (
-  <View style={styles.sectionCard}>
-    <Text style={styles.sectionTitle}>{title}</Text>
-    {children}
-  </View>
+  <View style={styles.sectionCard}><Text style={styles.sectionTitle}>{title}</Text>{children}</View>
 );
 
-const PlaceItem = ({ item }: { item: typeof placesEatenData[0] }) => (
-  <TouchableOpacity style={styles.placeItem}>
-    <Image source={{ uri: item.image }} style={styles.placeImage} />
-    <View style={styles.placeDetails}>
-      <Text style={styles.placeName}>{item.name}</Text>
-      <Text style={styles.placeInfo}>Last visited: {item.lastVisited}</Text>
-      <Text style={styles.placeInfo}>Rating: {'⭐'.repeat(item.rating)}</Text>
-    </View>
-    <Ionicons name="chevron-forward" size={24} color="#ccc" />
-  </TouchableOpacity>
-);
+const PlaceItem = ({ item, onPress }: { item: any, onPress: () => void }) => {
+  // If an image URL exists, we show the image.
+  if (item.image) {
+    return (
+      <TouchableOpacity style={styles.placeItem} onPress={onPress}>
+        <Image source={{ uri: item.image }} style={styles.placeImage} />
+        <View style={styles.placeDetails}>
+          <Text style={styles.placeName} numberOfLines={1}>{item.name}</Text>
+          <Text style={styles.placeInfo}>
+            Visited with <Text style={styles.groupNameHighlight}>{item.groupName}</Text> on {item.visitedAt ? new Date(item.visitedAt).toLocaleDateString() : '—'}
+          </Text>
+          <StarRating rating={item.rating || 0} size={16} />
+        </View>
+        <Ionicons name="chevron-forward" size={24} color="#ccc" />
+      </TouchableOpacity>
+    );
+  }
 
+  const iconName =
+    categoryIconNames[item.category] ||
+    (item.cuisines && item.cuisines.length > 0 && cuisineIconNames[item.cuisines[0]]) ||
+    'silverware-fork-knife';
+
+  return (
+    <TouchableOpacity style={styles.placeItem} onPress={onPress}>
+      <View style={styles.placeIconContainer}>
+        <MaterialCommunityIcons name={iconName as any} size={36} color="#EA4080" />
+      </View>
+      <View style={styles.placeDetails}>
+        <Text style={styles.placeName} numberOfLines={1}>{item.name}</Text>
+        <Text style={styles.placeInfo}>
+          Visited with <Text style={styles.groupNameHighlight}>{item.groupName}</Text> on {item.visitedAt ? new Date(item.visitedAt).toLocaleDateString() : '—'}
+        </Text>
+        <StarRating rating={item.rating || 0} size={16} />
+      </View>
+      <Ionicons name="chevron-forward" size={24} color="#ccc" />
+    </TouchableOpacity>
+  );
+};
 
 export default function HomeScreen() {
+  const [placesEaten, setPlacesEaten] = useState<any[]>([]);
+  const [loadingPlaces, setLoadingPlaces] = useState(true);
   const [meetings, setMeetings] = useState<any[]>([]);
   const [loadingMeetings, setLoadingMeetings] = useState(true);
   const router = useRouter();
@@ -71,10 +131,7 @@ export default function HomeScreen() {
         setLoadingMeetings(false);
         return;
       }
-
-      const allMeetings: any[] = [];
-      let groupsProcessed = 0;
-
+      
       groupsSnapshot.forEach(groupDoc => {
         const groupId = groupDoc.id;
         const meetingsRef = collection(db, 'groups', groupId, 'meetings');
@@ -100,12 +157,15 @@ export default function HomeScreen() {
         });
 
         meetingsUnsubscribes.push(meetingsUnsub);
-        groupsProcessed++;
       });
 
-      if (groupsProcessed === 0) {
-        setMeetings([]);
+      // this handles the case where a user is in groups, but none have upcoming meetings.
+      if (groupsSnapshot.docs.length > 0 && meetingsUnsubscribes.length === 0) {
         setLoadingMeetings(false);
+        setMeetings([]);
+      } else if (groupsSnapshot.docs.length === 0) {
+        setLoadingMeetings(false);
+        setMeetings([]);
       }
     });
 
@@ -115,9 +175,89 @@ export default function HomeScreen() {
     };
   }, []);
 
-  const formatDateTime = (ts: number) => {
-    const d = new Date(ts);
-    return `${d.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' })}  ${d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', hour12: true })}`;
+useEffect(() => {
+    const user = auth.currentUser;
+    if (!user) {
+      setPlacesEaten([]);
+      setLoadingPlaces(false);
+      return;
+    }
+
+    setLoadingPlaces(true);
+    let allUnsubscribes: (() => void)[] = [];
+    const ratingsMap = new Map<string, number>();
+
+    const triggerPlaceFetch = () => {
+        const groupsQuery = query(collection(db, 'groups'), where('members', 'array-contains', user.uid));
+        
+        getDocs(groupsQuery).then(groupsSnapshot => {
+            if (groupsSnapshot.empty) {
+                setPlacesEaten([]);
+                setLoadingPlaces(false);
+                return;
+            }
+
+            let allHistoryItems: any[] = [];
+            const promises: Promise<any>[] = [];
+
+            groupsSnapshot.forEach(groupDoc => {
+                const meetingsQuery = query(collection(db, 'groups', groupDoc.id, 'meetings'), where('eatingConfirmed', '==', true));
+                
+                const promise = getDocs(meetingsQuery).then(meetingsSnapshot => {
+                    const placePromises: Promise<any>[] = [];
+                    meetingsSnapshot.forEach(meetingDoc => {
+                        const meetingData = meetingDoc.data();
+                        const finalPlaceId = meetingData.finalPlaceId;
+                        if (finalPlaceId && typeof meetingData.date === 'number') { 
+                            const placeDocRef = doc(db, 'groups', groupDoc.id, 'meetings', meetingDoc.id, 'recommendations', finalPlaceId);
+                            placePromises.push(getDoc(placeDocRef).then(placeDoc => {
+                                if (placeDoc.exists()) {
+                                    allHistoryItems.push({
+                                        id: placeDoc.id,
+                                        ...placeDoc.data(),
+                                        visitedAt: meetingData.date, 
+                                        rating: ratingsMap.get(finalPlaceId) || 0,
+                                        groupName: groupDoc.data().name,
+                                    });
+                                }
+                            }));
+                        }
+                    });
+                    return Promise.all(placePromises);
+                });
+                promises.push(promise);
+            });
+
+            Promise.all(promises).then(() => {
+                allHistoryItems.sort((a, b) => (b.visitedAt || 0) - (a.visitedAt || 0));
+                
+                setPlacesEaten(allHistoryItems);
+                setLoadingPlaces(false);
+            });
+        });
+    };
+
+    const ratingsQuery = query(collection(db, 'users', user.uid, 'ratings'));
+    const ratingsUnsub = onSnapshot(ratingsQuery, (snapshot) => {
+        snapshot.forEach(doc => {
+            ratingsMap.set(doc.data().placeId, doc.data().rating);
+        });
+        triggerPlaceFetch();
+    });
+    allUnsubscribes.push(ratingsUnsub);
+
+    const groupsQuery = query(collection(db, 'groups'), where('members', 'array-contains', user.uid));
+    const groupsUnsub = onSnapshot(groupsQuery, () => {
+        triggerPlaceFetch();
+    });
+    allUnsubscribes.push(groupsUnsub);
+
+    return () => allUnsubscribes.forEach(unsub => unsub());
+  }, []);
+
+  const formatDateTime = (ts: Date) => {
+    if (!ts || !(ts instanceof Date)) return '';
+    return `${ts.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' })}  ${ts.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', hour12: true })}`;
   };
 
   const MeetingItem = ({ item }: any) => (
@@ -140,34 +280,30 @@ export default function HomeScreen() {
     </TouchableOpacity>
   );
 
+  
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" />
       <ScrollView contentContainerStyle={styles.container}>
-        {/* Upcoming Meetings Section */}
         <SectionCard title="Upcoming Meetings">
-          {loadingMeetings ? (
-            <ActivityIndicator size="large" color="#EA4080" />
-          ) : meetings.length > 0 ? (
-            meetings.map(m => <MeetingItem key={`${m.groupId}_${m.id}`} item={m} />)
-          ) : (
-            <Text style={styles.emptyText}>No upcoming meetings.</Text>
-          )}
-          <TouchableOpacity 
-            style={styles.seeAllButton} 
-            onPress={() => router.push('/see-all-meetings')}>
+          {loadingMeetings ? ( <ActivityIndicator /> ) : meetings.length > 0 ? (
+            meetings.slice(0, 3).map(m => <MeetingItem key={`${m.groupId}_${m.id}`} item={m} />)
+          ) : ( <Text style={styles.emptyText}>No upcoming meetings.</Text> )}
+          <TouchableOpacity style={styles.seeAllButton} onPress={() => router.push('/see-all-meetings')}>
             <Text style={styles.seeAllText}>See All Meetings</Text>
           </TouchableOpacity>
         </SectionCard>
-
-        {/* Places Eaten Section */}
         <SectionCard title="Places I've Eaten At">
-          {placesEatenData.length > 0 ? (
-            placesEatenData.map(item => <PlaceItem key={item.id} item={item} />)
-          ) : (
-            <Text style={styles.emptyText}>No places recorded yet.</Text>
-          )}
-          <TouchableOpacity style={styles.seeAllButton}>
+          {loadingPlaces ? ( <ActivityIndicator /> ) : placesEaten.length > 0 ? (
+            placesEaten.slice(0, 3).map(item => (
+              <PlaceItem
+                key={item.id}
+                item={item}
+                onPress={() => router.push({ pathname: "/places/[placeId]", params: { placeId: item.id, placeData: JSON.stringify(item) } })}
+              />
+            ))
+          ) : ( <Text style={styles.emptyText}>No places recorded yet.</Text> )}
+          <TouchableOpacity style={styles.seeAllButton} onPress={() => router.push('/see-all-places')}>
             <Text style={styles.seeAllText}>See All Places</Text>
           </TouchableOpacity>
         </SectionCard>
@@ -177,13 +313,8 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#f4f4f8',
-  },
-  container: {
-    padding: 15,
-  },
+  safeArea: { flex: 1, backgroundColor: '#f4f4f8' },
+  container: { padding: 15, paddingBottom: 30 },
   sectionCard: {
     backgroundColor: 'white',
     borderRadius: 10,
@@ -195,12 +326,7 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 3,
   },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 15,
-    color: '#333',
-  },
+  sectionTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 15, color: '#333' },
   meetingItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -208,31 +334,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
   },
-  meetingDetails: {
-    flex: 1,
-  },
-  meetingTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#444',
-  },
-  meetingGroupName: {
-    fontSize: 13,
-    color: '#EA4080',
-    fontWeight: 'bold',
-    marginTop: 2,
-  },
-  meetingTimeLocation: {
-    fontSize: 14,
-    color: '#777',
-    marginTop: 2,
-  },
-  meetingAttendees: {
-    fontSize: 13,
-    color: '#888',
-    marginTop: 4,
-    fontStyle: 'italic',
-  },
+  meetingDetails: { flex: 1 },
+  meetingTitle: { fontSize: 16, fontWeight: '600', color: '#444' },
+  meetingGroupName: { fontSize: 13, color: '#EA4080', fontWeight: 'bold', marginTop: 2 },
+  meetingTimeLocation: { fontSize: 14, color: '#777', marginTop: 2 },
   placeItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -245,33 +350,33 @@ const styles = StyleSheet.create({
     height: 60,
     borderRadius: 6,
     marginRight: 15,
+    backgroundColor: '#e0e0e0',
   },
-  placeDetails: {
-    flex: 1,
+  placeIconContainer: {
+    width: 80,
+    height: 60,
+    borderRadius: 6,
+    marginRight: 15,
+    backgroundColor: '#fff0f5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#eee',
   },
-  placeName: {
-    fontSize: 16,
+  placeDetails: { flex: 1 },
+  placeName: { fontSize: 16, fontWeight: '600', color: '#444' },
+  placeInfo: { fontSize: 14, color: '#777', marginTop: 2 },
+  groupNameHighlight: {
     fontWeight: '600',
-    color: '#444',
+    color: '#EA4080',
   },
-  placeInfo: {
-    fontSize: 14,
-    color: '#777',
-    marginTop: 2,
+  emptyText: { textAlign: 'center', color: '#888', paddingVertical: 20, fontSize: 15 },
+  seeAllButton: { marginTop: 15, alignItems: 'flex-end' },
+  seeAllText: { fontSize: 14, color: '#EA4080', fontWeight: '600' },
+  starContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
   },
-  emptyText: {
-    textAlign: 'center',
-    color: '#888',
-    paddingVertical: 20,
-    fontSize: 15,
-  },
-  seeAllButton: {
-    marginTop: 15,
-    alignItems: 'flex-end',
-  },
-  seeAllText: {
-    fontSize: 14,
-    color: '#EA4080', 
-    fontWeight: '600',
-  },
+  
 });

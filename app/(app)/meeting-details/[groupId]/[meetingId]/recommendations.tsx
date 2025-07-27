@@ -4,9 +4,11 @@ import {
   collection,
   doc,
   getDoc,
+  getDocs,
   onSnapshot,
   setDoc,
-  updateDoc
+  updateDoc,
+  writeBatch
 } from 'firebase/firestore';
 import React, { useEffect, useRef, useState } from 'react';
 import {
@@ -19,7 +21,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-// @ts-ignore
 import Swiper from 'react-native-deck-swiper';
 import { RestaurantCard } from '../../../../../components/RestaurantCard';
 import { auth, db } from '../../../../../services/firebaseConfig';
@@ -29,6 +30,42 @@ import {
   recordVote,
 } from '../../../../../services/recommendationServices';
 import type { Place } from '../../../../../services/types';
+
+const getAndCacheRecommendations = async (groupId: string, meetingId: string): Promise<Place[]> => {
+  const meetingRef = doc(db, 'groups', groupId, 'meetings', meetingId);
+  const meetingSnap = await getDoc(meetingRef);
+  const meetingData = meetingSnap.data();
+  const recsCollectionRef = collection(meetingRef, 'recommendations');
+
+  // If recommendations were already generated and saved, fetch them from the subcollection.
+  if (meetingData?.recommendationsGenerated) {
+    console.log('[getAndCache] Recommendations already exist. Fetching from subcollection.');
+    const recsSnap = await getDocs(recsCollectionRef);
+    return recsSnap.docs.map(doc => doc.data() as Place);
+  }
+
+  // Otherwise, fetch from the API for the first time.
+  console.log('[getAndCache] First time loading. Fetching from API and saving to Firestore.');
+  const newRecs = await fetchRecommendations(groupId, meetingId);
+
+  // Use a batch write to save all places efficiently and set the flag.
+  const batch = writeBatch(db);
+
+  newRecs.forEach(place => {
+    // Use the place's own ID as the document ID for easy lookup.
+    const placeDocRef = doc(recsCollectionRef, place.id);
+    batch.set(placeDocRef, { ...place }); // Use spread to ensure it's a plain JS object
+  });
+
+  // Set a flag on the meeting document 
+  batch.update(meetingRef, { recommendationsGenerated: true });
+
+  await batch.commit();
+  console.log(`[getAndCache] Saved ${newRecs.length} recommendations to subcollection and set flag.`);
+
+  return newRecs;
+};
+
 
 export default function RecommendationsScreen() {
   const { groupId, meetingId } = useLocalSearchParams<{ groupId: string; meetingId: string }>();
@@ -41,9 +78,10 @@ export default function RecommendationsScreen() {
   const [members, setMembers] = useState<string[]>([]);
   const [finishedMembers, setFinishedMembers] = useState<string[]>([]);
   const [userFinished, setUserFinished] = useState<boolean>(false);
-  const [currentIndex, setCurrentIndex] = useState<number>(0); // save the current swipe index so that a user can resume
+  const [currentIndex, setCurrentIndex] = useState<number>(0);
   const swiperRef = useRef<Swiper<Place> | null>(null);
   const memberId = auth.currentUser!.uid;
+
 
   useEffect(() => {
     (async () => {
@@ -54,39 +92,37 @@ export default function RecommendationsScreen() {
         if (!mSnap.exists()) throw new Error('Meeting not found');
         const mData = mSnap.data() as any;
 
-        // load group members
         const groupSnap = await getDoc(doc(db, 'groups', groupId!));
-        setMembers(groupSnap.data()?.members || []);
+        const groupMembers = groupSnap.data()?.members || [];
+        setMembers(groupMembers);
 
-        // check if a final recommendation is already set
-        if (mData.finalRecommendation) {
+        // if a consensus is already reached, show the results.
+        if (mData.finalRecommendations) {
           setConsensusData({
             status: mData.finalConsensusStatus || 'chosen',
-            restaurantIds: [mData.finalRecommendation],
+            restaurantIds: mData.finalRecommendations,
           });
           setFinished(true);
-          // even if final is reached, fetch recommendations to display the final cards
-          const recs = await fetchRecommendations(groupId!, meetingId!);
+          // fetch the cached recommendations
+          const recs = await getAndCacheRecommendations(groupId!, meetingId!);
           setPlaces(recs);
           setLoading(false);
           return;
         }
 
-        // load saved swipe progress for the current user
         const swipeStatusDoc = await getDoc(
           doc(db, 'groups', groupId!, 'meetings', meetingId!, 'swipeStatus', memberId)
         );
         if (swipeStatusDoc.exists() && !swipeStatusDoc.data().finished) {
           const progress = swipeStatusDoc.data().currentIndex ?? 0;
           setCurrentIndex(progress);
-          console.log('Resuming from saved index:', progress);
         } else {
           setCurrentIndex(0);
         }
 
-        // fetch recommendations normally
-        const recs = await fetchRecommendations(groupId!, meetingId!);
+        const recs = await getAndCacheRecommendations(groupId!, meetingId!);
         setPlaces(recs);
+
       } catch (err: any) {
         console.error('❌ Failed to load recommendations:', err);
         Alert.alert('Error', err.message || 'Could not load recommendations');
@@ -99,20 +135,30 @@ export default function RecommendationsScreen() {
   // listen for swipeStatus changes for all members
   useEffect(() => {
     if (!groupId || !meetingId) return;
+
     const unsub = onSnapshot(
       collection(db, 'groups', groupId, 'meetings', meetingId, 'swipeStatus'),
-      (snap) => {
+      async (snap) => {
         const finishedList: string[] = [];
         snap.forEach((doc) => {
           if (doc.data().finished) finishedList.push(doc.id);
         });
         setFinishedMembers(finishedList);
+
         if (finishedList.includes(memberId)) {
           setUserFinished(true);
         } else {
           setUserFinished(false);
         }
-        if (members.length > 0 && finishedList.length === members.length) {
+        
+        // fetch the group document right when we need to check, ensuring we have the correct member count.
+        const groupSnap = await getDoc(doc(db, 'groups', groupId));
+        const currentMembers = groupSnap.data()?.members || [];
+        
+        console.log(`[Swipe Listener] Finished count: ${finishedList.length}, Member count: ${currentMembers.length}`);
+
+        if (currentMembers.length > 0 && finishedList.length === currentMembers.length) {
+          console.log("[Swipe Listener] All members finished! Setting allFinished = true");
           setAllFinished(true);
         } else {
           setAllFinished(false);
@@ -120,20 +166,25 @@ export default function RecommendationsScreen() {
       }
     );
     return () => unsub();
-  }, [groupId, meetingId, members]);
+  }, [groupId, meetingId]); // We can remove `members` from dependency array as it's fetched inside now.
 
   // when all members are finished, check consensus and persist final recommendation
   useEffect(() => {
+    console.log(`[allFinished Hook] Fired. allFinished is: ${allFinished}`);
     if (allFinished) {
       (async () => {
+        console.log("[allFinished Hook] Getting consensus...");
         const cons = await getConsensus(groupId!, meetingId!);
         setConsensusData(cons);
         setWaiting(false);
         setFinished(true);
-        await updateDoc(doc(db, 'groups', groupId!, 'meetings', meetingId!), {
-          finalRecommendation: cons.restaurantIds ? cons.restaurantIds[0] : null,
-          finalConsensusStatus: cons.status,
-        });
+        
+        const dataToUpdate = {
+            finalRecommendations: cons.restaurantIds || null,
+            finalConsensusStatus: cons.status,
+        };
+        console.log("[allFinished Hook] Updating meeting doc with:", JSON.stringify(dataToUpdate));
+        await updateDoc(doc(db, 'groups', groupId!, 'meetings', meetingId!), dataToUpdate);
       })();
     }
   }, [allFinished, groupId, meetingId]);
@@ -141,6 +192,9 @@ export default function RecommendationsScreen() {
   // save the current swipe index for this member
   const updateSwipeProgress = async (index: number, finishedFlag: boolean = false) => {
     if (!groupId || !meetingId || !memberId) return;
+    if (finishedFlag) {
+        console.log(`[updateSwipeProgress] User ${memberId} finished. Writing to swipeStatus.`);
+    }
     await setDoc(
       doc(db, 'groups', groupId, 'meetings', meetingId, 'swipeStatus', memberId),
       { finished: finishedFlag, currentIndex: index },
@@ -159,7 +213,6 @@ export default function RecommendationsScreen() {
         setCurrentIndex(nextIndex);
         await updateSwipeProgress(nextIndex);
       } else {
-        // when user swipes the last card
         setFinished(true);
         await updateSwipeProgress(nextIndex, true);
         setWaiting(true);
@@ -328,7 +381,7 @@ const s = StyleSheet.create({
     width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: -30,
+    marginTop: -30, 
   },
   overlayLabel: {
     fontSize: 45,

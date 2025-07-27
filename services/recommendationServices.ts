@@ -196,7 +196,8 @@ export async function fetchGroupRestrictions(
 }
 
 // fetch image of restaurant
-async function fetchFoursquarePhoto(fsqId: string): Promise<string | undefined> {
+export async function fetchFoursquarePhoto(fsqId: string): Promise<string | undefined> {
+  if (!fsqId) return undefined;
   const res = await fetch(
     `https://api.foursquare.com/v3/places/${fsqId}/photos?limit=1`,
     {
