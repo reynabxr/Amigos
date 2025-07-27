@@ -51,7 +51,7 @@ export default function ManualSuggestionsScreen() {
   const [lat, setLat] = useState(0)
   const [lng, setLng] = useState(0)
 
-  // Foursquare search
+  // foursquare search
   const searchFoursquare = async (text: string) => {
     setQuery(text)
     if (text.length < 2) {
@@ -62,7 +62,7 @@ export default function ManualSuggestionsScreen() {
     try {
       const params = new URLSearchParams({
         query: text,
-        near: 'Singapore', // or use meeting location if available
+        near: 'Singapore',
         limit: '5',
       })
       const res = await fetch(`${FSQ_BASE}/search?${params.toString()}`, {
@@ -80,7 +80,7 @@ export default function ManualSuggestionsScreen() {
     setIsSearching(false)
   }
 
-  // When user taps a Foursquare result, autofill the form
+  // when user taps a Foursquare result, autofill the form
   const handleFsqSelect = (item: any) => {
     setName(item.name || '')
     setAddress(item.location?.formatted_address || '')
@@ -137,7 +137,7 @@ export default function ManualSuggestionsScreen() {
         contentContainerStyle={styles.container}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Search Section */}
+        {/* search section */}
       <View style={styles.section}>
   <Text style={styles.label}>Search for a place</Text>
   <View style={{ position: 'relative' }}>
@@ -176,7 +176,7 @@ export default function ManualSuggestionsScreen() {
   </View>
 </View>
 
-        {/* Form Section */}
+        {/* form section */}
         <View style={styles.section}>
           <Text style={styles.label}>Name <Text style={styles.required}>*</Text></Text>
           <TextInput
