@@ -64,7 +64,7 @@ export default function PlaceDetailScreen() {
 
   // Step 3: Function to handle saving a new rating
   const handleRatePlace = async (rating: number) => {
-    if (!placeId || !auth.currentUser || isSaving) return;
+    if (!placeId || !place || !auth.currentUser || isSaving) return;
 
     setIsSaving(true);
     try {
@@ -72,6 +72,9 @@ export default function PlaceDetailScreen() {
       await setDoc(ratingRef, {
         placeId: placeId,
         rating: rating,
+        category: place.category || null,    // Add the place's category
+        cuisines: place.cuisines || [],      // Add its cuisines
+        budget: place.budget || null,        // Add its budget
         updatedAt: new Date(),
       }, { merge: true }); // Use merge to avoid overwriting other fields
       

@@ -14,6 +14,9 @@ import {
 } from './foursquareConfig'
 import type { Place } from './types'
 
+// Minimum average score below which a place is excluded
+const MIN_SCORE_THRESHOLD = 2.5
+
 export function mapFoursquarePriceToBudget(priceLevel: number | undefined): string {
   switch (priceLevel) {
     case 1: return '< $15'
@@ -216,144 +219,133 @@ export async function fetchFoursquarePhoto(fsqId: string): Promise<string | unde
   }
   return undefined;
 }
+// 1) Build the taste profile
+async function fetchGroupTasteProfile(groupId: string) {
+  const grpSnap = await getDoc(doc(db, 'groups', groupId))
+  const members: string[] = grpSnap.data()?.members || []
 
-// full recommendation pipeline
+  const categoryScores = new Map<string, { total: number; count: number }>()
+  const cuisineScores  = new Map<string, { total: number; count: number }>()
+
+  await Promise.all(
+    members.map(async (uid) => {
+      const ratingsSnap = await getDocs(collection(db, 'users', uid, 'ratings'))
+      ratingsSnap.docs.forEach((d) => {
+        const { rating, category, cuisines } = d.data() as any
+        if (rating >= 1) {
+          // category
+          if (category) {
+            const cur = categoryScores.get(category) || { total: 0, count: 0 }
+            cur.total += rating
+            cur.count += 1
+            categoryScores.set(category, cur)
+          }
+          // cuisines
+          ;(cuisines || []).forEach((c: string) => {
+            const cur = cuisineScores.get(c) || { total: 0, count: 0 }
+            cur.total += rating
+            cur.count += 1
+            cuisineScores.set(c, cur)
+          })
+        }
+      })
+    })
+  )
+
+  return { categoryScores, cuisineScores }
+}
+
+// 2) Score function
+function scorePlace(
+  p: Place,
+  profile: { categoryScores: Map<string, {total:number;count:number}>;
+             cuisineScores : Map<string, {total:number;count:number}> },
+  explicitCuisines: string[],
+  explicitBudgets: string[]
+): number {
+  let score = 0
+  // learned category avg
+  const cat = profile.categoryScores.get(p.category)
+  if (cat) score += cat.total / cat.count
+
+  // learned cuisine max avg
+  const cScores = explicitCuisines.map((c) => {
+    const info = profile.cuisineScores.get(c)
+    return info ? info.total / info.count : 0
+  })
+  score += Math.max(0, ...cScores)
+
+  // budget boost
+  if (explicitBudgets.includes(p.budget)) score += 1
+
+  // exploration bonus
+  if (!profile.categoryScores.has(p.category)) score += 0.2
+
+  return score
+}
+
+// 3) Full pipeline with filtering
 export async function fetchRecommendations(
   groupId: string,
   meetingId: string
 ): Promise<Place[]> {
-  // 1. Manual suggestions
-  const manual = await fetchManual(groupId, meetingId);
-
-  // 2. Meeting doc for coords/text
-  const mSnap = await getDoc(doc(db, 'groups', groupId, 'meetings', meetingId));
-  const m = mSnap.exists() ? (mSnap.data() as any) : {};
-  const lat = m.lat as number | undefined;
-  const lng = m.lng as number | undefined;
-  const txt = m.location as string | undefined;
-
-  // 3. Fetch Foursquare
-  let fsqList: Place[] = [];
+  // a) get manual + FSQ candidates
+  const manual = await fetchManual(groupId, meetingId)
+  const mSnap = await getDoc(doc(db, 'groups', groupId, 'meetings', meetingId))
+  const m = mSnap.exists() ? (mSnap.data() as any) : {}
+  let fsqList: Place[] = []
   try {
-    if (typeof lat === 'number' && typeof lng === 'number') {
-      fsqList = await fetchFoursquareByCoords(lat, lng);
-    } else if (typeof txt === 'string') {
-      fsqList = await fetchFoursquareByText(txt);
-    } else {
-      throw new Error('No coords or text for FSQ lookup');
+    if (typeof m.lat === 'number' && typeof m.lng === 'number') {
+      fsqList = await fetchFoursquareByCoords(m.lat, m.lng)
+    } else if (m.location) {
+      fsqList = await fetchFoursquareByText(m.location)
     }
-  } catch (e: any) {
-    console.warn('FSQ fetch failed:', e.message);
-    fsqList = await fetchFoursquareByCoords(1.3521, 103.8198); // fallback: Singapore center
+  } catch {
+    fsqList = await fetchFoursquareByCoords(1.3521, 103.8198)
   }
-
-  // 4. Enrich with OSM dietary tags and cuisines
   await Promise.all(
-    fsqList.map(async (p: Place) => {
-      const { dietaryFlags, cuisines } = await enrichWithOsmFlags(p.lat, p.lng);
-      p.dietaryFlags = dietaryFlags;
-      p.cuisines = cuisines;
+    fsqList.map(async (p) => {
+      const { dietaryFlags, cuisines } = await enrichWithOsmFlags(p.lat, p.lng)
+      p.dietaryFlags = dietaryFlags
+      p.cuisines = cuisines
     })
-  );
+  )
 
-  // 5. Fetch group dietary restrictions and preferences
-  const reqs = await fetchGroupRestrictions(groupId); // e.g. ["Halal", "Vegetarian", "Vegan", ...]
+  // b) hard filter
+  const reqs = await fetchGroupRestrictions(groupId)
+  const hard = fsqList.filter((p) =>
+    reqs.every((r) => p.dietaryFlags.includes(r))
+  )
+
+  // c) merge & dedupe
+  const map = new Map<string, Place>()
+  ;[...manual, ...hard].forEach((p) => map.set(p.id, p))
+  const merged = Array.from(map.values())
+
+  // d) explicit meeting prefs
   const prefsSnap = await getDocs(
     collection(db, 'groups', groupId, 'meetings', meetingId, 'preferences')
-  );
-  let cuisineCounts: Record<string, number> = {};
-  let budgetCounts: Record<string, number> = {};
-  prefsSnap.forEach((doc) => {
-    const data = doc.data();
-    (data.cuisines || []).forEach((c: string) => {
-      cuisineCounts[c] = (cuisineCounts[c] || 0) + 1;
-    });
-    if (data.budget) {
-      budgetCounts[data.budget] = (budgetCounts[data.budget] || 0) + 1;
-    }
-  });
-  const topCuisines = Object.entries(cuisineCounts)
-    .sort((a, b) => b[1] - a[1])
-    .map(([c]) => c);
-  const topBudgets = Object.entries(budgetCounts)
-    .sort((a, b) => b[1] - a[1])
-    .map(([b]) => b);
+  )
+  const explicitCuisines: string[] = []
+  const explicitBudgets: string[] = []
+  prefsSnap.docs.forEach((d) => {
+    const data = d.data() as any
+    explicitCuisines.push(...(data.cuisines || []))
+    if (data.budget) explicitBudgets.push(data.budget)
+  })
 
-  // Halal filtering that includes explicitly Halal or not tagged
-  if (reqs.includes('Halal')) {
-  fsqList = fsqList.filter(
-    (p: Place) =>
-      p.dietaryFlags.includes('Halal') ||
-      p.dietaryFlags.length === 0 // allow untagged
-  );
-  // sort so Halal-tagged appear first
-  fsqList.sort((a, b) => {
-    const aHalal = a.dietaryFlags.includes('Halal') ? 1 : 0;
-    const bHalal = b.dietaryFlags.includes('Halal') ? 1 : 0;
-    return bHalal - aHalal;
-  });
+  // e) **await** the taste profile!
+  const profile = await fetchGroupTasteProfile(groupId)
+
+  // f) score & threshold filter
+  const scored = merged
+    .map((p) => ({ place: p, score: scorePlace(p, profile, explicitCuisines, explicitBudgets) }))
+    .filter((x) => x.score >= MIN_SCORE_THRESHOLD)
+
+  // g) sort
+  scored.sort((a, b) => b.score - a.score)
+  return scored.map((x) => x.place)
 }
-
-  // Soft tags (Vegetarian, Vegan, etc): ensure at least 2 of each if requested
-  const softTags = ['Vegetarian', 'Vegan', 'Kosher', 'Gluten-free', 'Lactose-free', 'Pescetarian', 'Nut-free', 'Egg-free', 'Soy-free'];
-  const map = new Map<string, Place>();
-  manual.forEach((p: Place) => map.set(p.id, p));
-  softTags.forEach(tag => {
-    if (reqs.includes(tag)) {
-      let tagPlaces = fsqList.filter((p: Place) => p.dietaryFlags.includes(tag));
-      if (tagPlaces.length < 2) {
-        tagPlaces = [
-          ...tagPlaces,
-          ...fsqList
-            .filter(
-              (p: Place) =>
-                !p.dietaryFlags.includes(tag) && p.dietaryFlags.length === 0
-            )
-            .slice(0, 2 - tagPlaces.length),
-        ];
-      }
-      tagPlaces.forEach((p: Place) => map.set(p.id, p));
-    }
-  });
-  fsqList.forEach((p: Place) => map.set(p.id, p));
-  let merged = Array.from(map.values());
-
-  // Sort by cuisine and budget preferences (prioritise, not filter)
-  merged.sort((a, b) => {
-    // Cuisine boost: match either Foursquare category or any OSM cuisine
-    const aCuisineScore =
-      topCuisines.some(
-        (c) =>
-          a.category.toLowerCase().includes(c.toLowerCase()) ||
-          (a.cuisines || []).some((oc) => oc.toLowerCase() === c.toLowerCase())
-      )
-        ? 1
-        : 0;
-    const bCuisineScore =
-      topCuisines.some(
-        (c) =>
-          b.category.toLowerCase().includes(c.toLowerCase()) ||
-          (b.cuisines || []).some((oc) => oc.toLowerCase() === c.toLowerCase())
-      )
-        ? 1
-        : 0;
-    // Budget boost
-    const aBudgetScore = topBudgets.includes(a.budget) ? 1 : 0;
-    const bBudgetScore = topBudgets.includes(b.budget) ? 1 : 0;
-    // Soft dietary boost
-    const aSoft = softTags.some((tag) => reqs.includes(tag) && a.dietaryFlags.includes(tag)) ? 1 : 0;
-    const bSoft = softTags.some((tag) => reqs.includes(tag) && b.dietaryFlags.includes(tag)) ? 1 : 0;
-    return (
-      bSoft - aSoft ||
-      bCuisineScore - aCuisineScore ||
-      bBudgetScore - aBudgetScore
-    );
-  });
-
-  console.log('✅ Recommendations:', merged);
-  return merged;
-}
-
 
 // 6) Record a swipe vote
 export async function recordVote(
@@ -407,4 +399,3 @@ export async function getConsensus(
   }
   return { status: 'none' };
 }
-
