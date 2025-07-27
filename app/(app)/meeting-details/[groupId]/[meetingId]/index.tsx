@@ -126,24 +126,17 @@ export default function MeetingDetailsScreen() {
 
     setIsConfirming(true);
     try {
-      // 1. Prepare a batch write.
       const batch = writeBatch(db);
       
-      // 2. Get a reference to the meeting document.
       const meetingDocRef = doc(db, 'groups', groupId, 'meetings', meetingId);
 
-      // 3. Update the meeting document to confirm the choice.
-      // This is the only action we need to perform on the client-side.
       batch.update(meetingDocRef, { 
         eatingConfirmed: true,
         finalPlaceId: place.id,
       });
 
-      // 4. Commit the batch.
       await batch.commit();
 
-      // The Cloud Function (or the "Pull" logic on home screen)
-      // will handle populating everyone's history.
       Alert.alert("Success!", `${place.name} has been confirmed as the final choice.`);
 
     } catch (error) {
@@ -243,7 +236,7 @@ console.log(`[MeetingDetails] --- RENDERING ---. finalChoices count: ${finalChoi
         {finalChoices.length > 0 && !meeting.eatingConfirmed && (
            <View style={styles.finalizationContainer}>
             <Text style={styles.finalChoiceHeader}>
-              Finalize Your Choice
+              Finalise Your Choice
             </Text>
 
             {finalChoices.map(place => (
