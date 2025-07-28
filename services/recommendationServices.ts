@@ -39,7 +39,7 @@ export async function fetchManual(
 }
 
 // Foursquare by coords
-async function fetchFoursquareByCoords(
+export async function fetchFoursquareByCoords(
   lat: number,
   lng: number,
   limit = 20
@@ -84,7 +84,7 @@ async function fetchFoursquareByCoords(
 }
 
 //  Foursquare by text (fallback if no coords)
-async function fetchFoursquareByText(
+export async function fetchFoursquareByText(
   near: string,
   limit = 20
 ): Promise<Place[]> {

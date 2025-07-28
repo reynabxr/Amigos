@@ -25,7 +25,6 @@ export default function PlaceDetailScreen() {
   const [loadingRating, setLoadingRating] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Step 1: Parse the place data passed from the previous screen
   useEffect(() => {
     if (placeData) {
       try {
@@ -40,7 +39,6 @@ export default function PlaceDetailScreen() {
     }
   }, [placeData]);
 
-  // Step 2: Listen for the user's rating for this specific place
   useEffect(() => {
     if (!placeId || !auth.currentUser) {
       setLoadingRating(false);
@@ -54,15 +52,14 @@ export default function PlaceDetailScreen() {
       if (docSnap.exists()) {
         setUserRating(docSnap.data().rating);
       } else {
-        setUserRating(0); // No rating exists yet
+        setUserRating(0); // no rating exists yet
       }
       setLoadingRating(false);
     });
 
-    return () => unsubscribe(); // Cleanup listener on unmount
+    return () => unsubscribe();
   }, [placeId]);
 
-  // Step 3: Function to handle saving a new rating
   const handleRatePlace = async (rating: number) => {
     if (!placeId || !auth.currentUser || isSaving) return;
 
@@ -73,7 +70,7 @@ export default function PlaceDetailScreen() {
         placeId: placeId,
         rating: rating,
         updatedAt: new Date(),
-      }, { merge: true }); // Use merge to avoid overwriting other fields
+      }, { merge: true });
       
       Alert.alert('Success', 'Your rating has been saved!');
     } catch (error) {
@@ -100,7 +97,7 @@ export default function PlaceDetailScreen() {
           title: place.name || 'Place Details',
           headerLeft: () => (
             <TouchableOpacity
-              onPress={() => router.back()} // Navigates to the previous screen
+              onPress={() => router.back()}
               style={{ marginLeft: 20 }}
             >
               <Ionicons name="arrow-back" size={24} color="#EA4080" />

@@ -22,6 +22,7 @@ export const StarRating = ({ rating, onRate, size = 32, color = '#f5b942' }: Sta
             name={star <= rating ? 'star' : 'star-outline'}
             size={size}
             color={color}
+            testID={star <= rating ? 'star-filled' : 'star-empty'}
           />
         </TouchableOpacity>
       ))}
